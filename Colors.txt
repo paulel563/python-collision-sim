@@ -1,0 +1,120 @@
+COLOR1 = (255, 0, 0)  # First color (Red)
+COLOR2 = (0, 0, 255)  # Second color (Blue)
+
+COLOR1 = (47, 60, 126)  # First color (blue)
+COLOR2 = (251, 234, 235)  # Second color (pastel pink)
+
+COLOR1 = (153, 0, 17)  # First color (cherry red)
+COLOR2 = (252, 246, 245)  # Second color (off-white)
+
+COLOR1 = (138, 170, 229)  # First color (baby blue)
+COLOR2 = (255, 255, 255)  # Second color (white)
+
+COLOR1 = (137, 171, 227)  # First color (sky blue)
+COLOR2 = (234, 115, 141)  # Second color (bubblegum pink)
+
+COLOR1 = (233, 13, 242)  # First color (bright pink)
+COLOR2 = (22, 242, 13)  # Second color (bright green)
+
+COLOR1 = (85, 204, 177)  # First color (teal)
+COLOR2 = (204, 51, 78)  # Second color (salmon)
+
+COLOR1 = (151, 215, 0)  # First color (Wicked Green)
+COLOR2 = (255, 102, 196)  # Second color (Wicket Pink)
+
+COLOR1 = (255, 255, 0)  # First color (Yellow)
+COLOR2 = (0, 0, 255)  # Second color (Blue)
+
+COLOR1 = (255, 0, 55)  # First color ("red")
+COLOR2 = (0, 255, 200)  # Second color (Turquoise)
+
+COLOR1 = (255, 90, 0)  # First color (Orange-ish)
+COLOR2 = (0, 42, 255)  # Second color (Blue-ish)
+
+COLOR1 = (255, 20, 20)    # First color (Red)
+COLOR2 = (20, 255, 20)    # Second color (Green)
+
+COLOR1 = (0, 9, 255)  # First color (Blue)
+COLOR2 = (255, 246, 0)  # Second color (Yellow-ish)
+
+COLOR2 = (0, 255, 255)    # First color (Electric Blue)
+COLOR1 = (255, 20, 147)    # Second color (Neon Pink)
+
+
+COLOR2 = (0, 128, 128)     # First color (Teal)
+COLOR1 = (255, 20, 147)    # Second color (Neon Pink)
+COLOR2_NAME = "Teal"
+COLOR1_NAME = "Neon Pink"
+
+
+LETTER1_COLOR = (255, 0, 0)     # e.g., Orange Red
+LETTER2_COLOR = (0, 255, 255)    # e.g., Cyan
+
+LETTER1_COLOR = (255, 255, 0)   # Yellow
+LETTER2_COLOR = (128, 0, 128)   # Purple
+
+LETTER1_COLOR = (255, 20, 147)  # (Neon Pink)
+LETTER2_COLOR = (255, 255, 0)   # Bright Yellow
+
+LETTER1_COLOR = (0, 255, 0)     # Pure Green
+LETTER2_COLOR = (255, 0, 255)   # Hot Magenta
+
+COLOR2 = (0, 255, 255)     # First color (Cyan)
+COLOR1 = (255, 165, 0)     # Second color (Orange)
+COLOR2_NAME = "Cyan"
+COLOR1_NAME = "Orange"
+
+COLOR2 = (75, 0, 130)      # First color (Indigo)
+COLOR1 = (255, 215, 0)     # Second color (Gold)
+COLOR2_NAME = "Indigo"
+COLOR1_NAME = "Gold"
+
+COLOR2 = (50, 205, 50)     # First color (Lime Green)
+COLOR1 = (255, 0, 255)     # Second color (Magenta)
+COLOR2_NAME = "Lime Green"
+COLOR1_NAME = "Magenta"
+
+COLOR2 = (138, 43, 226)    # First color (Blue Violet)
+COLOR1 = (255, 69, 0)      # Second color (Red-Orange)
+COLOR2_NAME = "Blue Violet"
+COLOR1_NAME = "Red-Orange"
+
+COLOR2 = (0, 191, 255)     # First color (Deep Sky Blue)
+COLOR1 = (255, 0, 127)     # Second color (Hot Pink)
+COLOR2_NAME = "Deep Sky Blue"
+COLOR1_NAME = "Hot Pink"
+
+COLOR2 = (34, 139, 34)     # First color (Forest Green)
+COLOR1 = (255, 140, 0)     # Second color (Dark Orange)
+COLOR2_NAME = "Forest Green"
+COLOR1_NAME = "Dark Orange"
+
+COLOR2 = (220, 20, 60)     # First color (Crimson)
+COLOR1 = (0, 255, 127)     # Second color (Spring Green)
+COLOR2_NAME = "Crimson"
+COLOR1_NAME = "Spring Green"
+
+COLOR2 = (0, 0, 255)       # First color (Blue)
+COLOR1 = (255, 255, 0)     # Second color (Yellow)
+COLOR2_NAME = "Blue"
+COLOR1_NAME = "Yellow"
+
+COLOR2 = (64, 224, 208)    # First color (Turquoise)
+COLOR1 = (255, 99, 71)     # Second color (Tomato)
+COLOR2_NAME = "Turquoise"
+COLOR1_NAME = "Tomato"
+
+COLOR2 = (0, 0, 220)     # First color (Crimson)
+COLOR1 = (0, 255, 127)     # Second color (Spring Green)
+COLOR2_NAME = "Blue"
+COLOR1_NAME = "Spring Green"
+
+
+
+
+
+
+
+Audio tracks:
+Black Swan
+Wolf Moon (ends around min)

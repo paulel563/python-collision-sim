@@ -47,7 +47,7 @@ COLOR2_NAME = "Teal"
 COLOR1_NAME = "Neon Pink"
 
 
-LETTER1_COLOR = (255, 0, 0)     # e.g., Orange Red
+LETTER1_COLOR = (255, 0, 0)     # e.g.,  Red
 LETTER2_COLOR = (0, 255, 255)    # e.g., Cyan
 
 LETTER1_COLOR = (255, 255, 0)   # Yellow
@@ -64,10 +64,6 @@ COLOR1 = (255, 165, 0)     # Second color (Orange)
 COLOR2_NAME = "Cyan"
 COLOR1_NAME = "Orange"
 
-COLOR2 = (75, 0, 130)      # First color (Indigo)
-COLOR1 = (255, 215, 0)     # Second color (Gold)
-COLOR2_NAME = "Indigo"
-COLOR1_NAME = "Gold"
 
 COLOR2 = (50, 205, 50)     # First color (Lime Green)
 COLOR1 = (255, 0, 255)     # Second color (Magenta)
@@ -79,9 +75,9 @@ COLOR1 = (255, 69, 0)      # Second color (Red-Orange)
 COLOR2_NAME = "Blue Violet"
 COLOR1_NAME = "Red-Orange"
 
-COLOR2 = (0, 191, 255)     # First color (Deep Sky Blue)
+COLOR2 = (0, 191, 255)     # First color (Sky Blue)
 COLOR1 = (255, 0, 127)     # Second color (Hot Pink)
-COLOR2_NAME = "Deep Sky Blue"
+COLOR2_NAME = "Sky Blue"
 COLOR1_NAME = "Hot Pink"
 
 COLOR2 = (34, 139, 34)     # First color (Forest Green)
@@ -104,10 +100,15 @@ COLOR1 = (255, 99, 71)     # Second color (Tomato)
 COLOR2_NAME = "Turquoise"
 COLOR1_NAME = "Tomato"
 
-COLOR2 = (0, 0, 220)     # First color (Crimson)
+COLOR2 = (0, 0, 220)     # First color (Blue)
 COLOR1 = (0, 255, 127)     # Second color (Spring Green)
 COLOR2_NAME = "Blue"
 COLOR1_NAME = "Spring Green"
+
+COLOR2 = (111, 30, 180)    # First color (Blue Violet)
+COLOR1 = (170, 25, 0)      # Second color (Red-Orange)
+COLOR2_NAME = "Purple"
+COLOR1_NAME = "Red"
 
 
 

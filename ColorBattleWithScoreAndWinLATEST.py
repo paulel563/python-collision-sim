@@ -1,49 +1,44 @@
+import os
+import numpy as np
+import wave
 import pygame
 import random
 
 # -------------------------------------------------------
-# Original Configuration
+# Simulation Configuration
 # -------------------------------------------------------
-
-SCREEN_WIDTH = 432  # Window display width
-SCREEN_HEIGHT = 768  # Window display height
-RENDER_WIDTH = 1080  # Render resolution width (e.g., Full HD)
-RENDER_HEIGHT = 1920  # Render resolution height (e.g., Full HD)
+SCREEN_WIDTH = 432    # Window display width
+SCREEN_HEIGHT = 768   # Window display height
+RENDER_WIDTH = 1080   # Render resolution width
+RENDER_HEIGHT = 1920  # Window rendering height
 FPS = 60
 
 PARTICLE_RADIUS = 15
-PARTICLE_SPEED = 0.7
-COLOR1_COUNT = 700  # Initial number of particles in COLOR1
-COLOR2_COUNT = 700  # Initial number of particles in COLOR2
-LAST_NUM_PARTICLES = 180  # Number of submissive particles left to trigger a reversal
+PARTICLE_SPEED = 0.71
+COLOR1_COUNT = 700    # Number of particles of COLOR1
+COLOR2_COUNT = 700    # Number of particles of COLOR2
+LAST_NUM_PARTICLES = 185  # Threshold for a forced color dominance swap
 
-MIDDLE_LAST_NUM_PARTICLES = 300  # Number of submissive particles for the middle phase
-MIDDLE_GROUP = 8  # Time in seconds to switch to the middle phase
+MIDDLE_LAST_NUM_PARTICLES = 290
+MIDDLE_GROUP = 9
 
-SECOND_LAST_NUM_PARTICLES = 50   # Number of submissive particles for the second to last phase
-SECOND_LAST_GROUP = 11           # Time in seconds to switch to the second to last phase
+SECOND_LAST_NUM_PARTICLES = 50
+SECOND_LAST_GROUP = 18
 
-FINAL_LAST_NUM_PARTICLES = 0     # Final threshold for the last phase
-FINAL_LAST_GROUP = 31            # Time in seconds to switch to the final phase
+FINAL_LAST_NUM_PARTICLES = 0
+FINAL_LAST_GROUP = 29
 
-# Colors and Names
-COLOR2 = (0, 255, 255)     # First color (Cyan)
-COLOR1 = (255, 69, 0)      # Second color (Orange Red)
-COLOR2_NAME = "Cyan"
-COLOR1_NAME = "Orange Red"
+COLOR2 = (0, 191, 255)     # First color (Sky Blue)
+COLOR1 = (255, 0, 127)     # Second color (Hot Pink)
+COLOR2_NAME = "Sky Blue"
+COLOR1_NAME = "Hot Pink"
 
-BACKGROUND_COLOR = (0, 0, 0)  # Background color
+BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 33  # Seed for pseudo-random number generation
-
-# Cooldown in seconds for conversions
-CONVERSION_COOLDOWN = 0.06  
-
-# Initial pause time
-INITIAL_PAUSE_SECONDS = 3  
-
-# Grid settings
-GRID_SIZE = 50  
+SEED = 13
+CONVERSION_COOLDOWN = 0.06
+INITIAL_PAUSE_SECONDS = 3
+GRID_SIZE = 50
 
 NEIGHBOR_OFFSETS = [
     (-1, -1), (0, -1), (1, -1),
@@ -51,51 +46,207 @@ NEIGHBOR_OFFSETS = [
     (-1,  1), (0,  1), (1,  1)
 ]
 
-# -------------------------------------------------------
-# New Toggles and Font Sizes
-# -------------------------------------------------------
-
-SHOW_SCOREBOARD = True       # Toggle scoreboard display on/off
-SHOW_WINNER_OVERLAY = True   # Toggle winner overlay on/off
-
-# Smaller scoreboard font
+SHOW_SCOREBOARD = True
+SHOW_WINNER_OVERLAY = True
 SCOREBOARD_FONT_SIZE = 24
 
+SOUND_COOLDOWN_MS = 100
+SWAP_SOUND_COOLDOWN_MS = 500
+
+last_collision_sound_tick = 0
+last_swap_sound_tick = 0
+
+AMBIENT_CHORDS = [
+    [220, 261.63, 329.63],    
+    [174.61, 220, 261.63],    
+    [261.63, 329.63, 392.00], 
+    [196.00, 246.94, 293.66]  
+]
+AMBIENT_DURATION = 32
+
+# -------------------------------------------------------
+# Helper: Save data to a WAV file
+# -------------------------------------------------------
+def save_wave(filename, data, sample_rate=44100):
+    with wave.open(filename, 'w') as wf:
+        wf.setnchannels(1)  # Save as mono
+        wf.setsampwidth(2)  # 16-bit
+        wf.setframerate(sample_rate)
+        wf.writeframes(data.tobytes())
+
+# -------------------------------------------------------
+# Ambient Progression Generation
+# -------------------------------------------------------
+def generate_ambient_progression(filename, duration=AMBIENT_DURATION, volume=0.4, sample_rate=44100):
+    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+    
+    # Base Drone
+    freqs = [60, 80, 100]
+    tones = []
+    for i, base_freq in enumerate(freqs):
+        phase = 2 * np.pi * base_freq * t + 0.5 * np.sin(2 * np.pi * 0.4 * t + i * 0.3)
+        tone = np.sin(phase)
+        tones.append(tone)
+    drone = np.mean(tones, axis=0)
+    
+    attack_time = 3.0
+    attack_samples = int(sample_rate * attack_time)
+    envelope = np.ones_like(t)
+    attack_env = 0.5 - 0.5 * np.cos(np.pi * np.linspace(0, 1, attack_samples))
+    envelope[:attack_samples] = attack_env
+    release_env = 0.5 - 0.5 * np.cos(np.pi * np.linspace(1, 0, attack_samples))
+    envelope[-attack_samples:] = release_env
+    drone *= envelope
+
+    # Chord Progression
+    chords_count = len(AMBIENT_CHORDS)
+    chord_duration = duration / chords_count
+    chord_track = np.zeros_like(t)
+
+    for i, chord in enumerate(AMBIENT_CHORDS):
+        seg_start = int(i * chord_duration * sample_rate)
+        seg_end = int((i + 1) * chord_duration * sample_rate)
+        t_seg = np.linspace(0, chord_duration, seg_end - seg_start, endpoint=False)
+        chord_signal = np.zeros_like(t_seg)
+        for freq in chord:
+            base = np.sin(2 * np.pi * (freq + 0.5*np.sin(2*np.pi*0.2*t_seg)) * t_seg)
+            detuned = np.sin(2 * np.pi * (freq*1.005 + 0.5*np.sin(2*np.pi*0.2*t_seg)) * t_seg)
+            note = (base + detuned) / 2.0
+            chord_signal += note
+        chord_signal /= len(chord)
+        # Fade in/out in each chord segment
+        fade_time = 0.5
+        fade_samples = int(sample_rate * fade_time)
+        env_seg = np.ones_like(t_seg)
+        if fade_samples > 0 and fade_samples < len(t_seg) // 2:
+            env_seg[:fade_samples] = 0.5 - 0.5 * np.cos(np.pi * np.linspace(0, 1, fade_samples))
+            env_seg[-fade_samples:] = 0.5 - 0.5 * np.cos(np.pi * np.linspace(1, 0, fade_samples))
+        chord_signal *= env_seg
+        chord_track[seg_start:seg_end] = chord_signal
+
+    ambient = 0.6 * drone + 0.4 * chord_track
+    ambient *= volume
+
+    data = (ambient * 32767).astype(np.int16)
+    save_wave(filename, data, sample_rate)
+
+# -------------------------------------------------------
+# Collision Chime
+# -------------------------------------------------------
+def generate_chime(filename, frequency=400, duration=0.35, volume=0.07, sample_rate=44100):
+    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+    tone_fundamental = np.sin(2 * np.pi * frequency * t)
+    tone_overtone = 0.6 * np.sin(2 * np.pi * (frequency * 2) * t)
+    tone = (0.7*tone_fundamental + tone_overtone) / 1.3
+    
+    attack_time = 0.03
+    attack_samples = int(sample_rate * attack_time)
+    envelope = np.ones_like(t)
+    envelope[:attack_samples] = 0.5 - 0.5 * np.cos(np.pi * np.linspace(0,1,attack_samples))
+    envelope[attack_samples:] = np.exp(-3 * (t[attack_samples:] - t[attack_samples]))
+    tone *= envelope * volume
+    data = (tone * 32767).astype(np.int16)
+    save_wave(filename, data, sample_rate)
+
+# -------------------------------------------------------
+# Victory Sound
+# -------------------------------------------------------
+def generate_victory(filename, duration=1.8, volume=0.5, sample_rate=44100):
+    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+    f1 = 440.0
+    f2 = 523.25
+    f3 = 659.26
+
+    vibrato = 0.005 * np.sin(2 * np.pi * 1.0 * t)
+    
+    tone1 = np.sin(2 * np.pi * (f1 + vibrato) * t)
+    tone1_detuned = np.sin(2 * np.pi * (f1*1.002 + vibrato) * t)
+    tone1 = (tone1 + tone1_detuned) / 2
+    
+    tone2 = 0.8 * np.sin(2 * np.pi * (f2 + vibrato) * t)
+    tone2_detuned = 0.8 * np.sin(2 * np.pi * (f2*1.002 + vibrato) * t)
+    tone2 = (tone2 + tone2_detuned) / 2
+    
+    tone3 = 0.6 * np.sin(2 * np.pi * (f3 + vibrato) * t)
+    tone3_detuned = np.sin(2 * np.pi * (f3*1.002 + vibrato) * t)
+    tone3 = (tone3 + tone3_detuned) / 2
+
+    chord = (tone1 + tone2 + tone3) / (1 + 0.8 + 0.6)
+    
+    attack_time = 0.1
+    attack_samples = int(sample_rate * attack_time)
+    release_samples = t.size - attack_samples
+    env = np.ones_like(t)
+    env[:attack_samples] = 0.5 - 0.5 * np.cos(np.pi * np.linspace(0, 1, attack_samples))
+    env[attack_samples:] = np.cos(np.linspace(0, np.pi/2, release_samples))
+    chord *= env * volume
+    data = (chord * 32767).astype(np.int16)
+    save_wave(filename, data, sample_rate)
+
+# -------------------------------------------------------
+# Generate or replace sound files
+# -------------------------------------------------------
+if os.path.exists("ambient.wav"):
+    os.remove("ambient.wav")
+generate_ambient_progression("ambient.wav", AMBIENT_DURATION, 0.5, 44100)
+
+if os.path.exists("collision.wav"):
+    os.remove("collision.wav")
+generate_chime("collision.wav", 400, 0.35, 0.07, 44100)
+
+if os.path.exists("victory.wav"):
+    os.remove("victory.wav")
+generate_victory("victory.wav", 1.8, 0.5, 44100)
+
+# -------------------------------------------------------
+# Pygame and Mixer Initialization
+# -------------------------------------------------------
 pygame.init()
+
+# If you want to force stereo, uncomment below:
+# pygame.mixer.quit()
+# pygame.mixer.init(frequency=44100, size=-16, channels=2)
+
+pygame.mixer.init()
+
+try:
+    ambient_sound = pygame.mixer.Sound("ambient.wav")
+    collision_sound = pygame.mixer.Sound("collision7.mp3")
+    victory_sound = pygame.mixer.Sound("victory.wav")
+except Exception as e:
+    print("Error loading sound files:", e)
+    ambient_sound = collision_sound = victory_sound = None
+
+if ambient_sound:
+    ambient_sound.set_volume(0.67)
+if collision_sound:
+    collision_sound.set_volume(0.09)
+if victory_sound:
+    victory_sound.set_volume(0.4)
+
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.DOUBLEBUF)
 pygame.display.set_caption("Battle of Colors Simulation")
 
-# Create a high-resolution surface for rendering
 render_surface = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT)).convert()
 
 dominant_color = None
 submissive_color = None
 
-# -------------------------------------------------------
-# Helper Function: Draw Text with a White Border
-# -------------------------------------------------------
+# Helper function: Draw text with outline
 def draw_text_with_border(surface, text, font, text_color, border_color, pos, border_width=2):
-    """
-    Draws text with a border by first rendering the text in the border color
-    several times with a small offset, then rendering the text in the main color.
-    """
-    # Loop over offsets (skipping the center)
     for dx in [-border_width, 0, border_width]:
         for dy in [-border_width, 0, border_width]:
             if dx != 0 or dy != 0:
                 border_surface = font.render(text, True, border_color)
                 surface.blit(border_surface, (pos[0] + dx, pos[1] + dy))
-    # Now draw the main text
     text_surface = font.render(text, True, text_color)
     surface.blit(text_surface, pos)
 
-# -------------------------------------------------------
-# Pre-render circle surfaces
-# -------------------------------------------------------
-particle_surf_color1 = pygame.Surface((PARTICLE_RADIUS * 2, PARTICLE_RADIUS * 2), pygame.SRCALPHA)
+# Pre-render circles for performance
+particle_surf_color1 = pygame.Surface((PARTICLE_RADIUS*2, PARTICLE_RADIUS*2), pygame.SRCALPHA)
 pygame.draw.circle(particle_surf_color1, COLOR1, (PARTICLE_RADIUS, PARTICLE_RADIUS), PARTICLE_RADIUS)
 
-particle_surf_color2 = pygame.Surface((PARTICLE_RADIUS * 2, PARTICLE_RADIUS * 2), pygame.SRCALPHA)
+particle_surf_color2 = pygame.Surface((PARTICLE_RADIUS*2, PARTICLE_RADIUS*2), pygame.SRCALPHA)
 pygame.draw.circle(particle_surf_color2, COLOR2, (PARTICLE_RADIUS, PARTICLE_RADIUS), PARTICLE_RADIUS)
 
 PARTICLE_SURF_MAP = {
@@ -104,12 +255,55 @@ PARTICLE_SURF_MAP = {
 }
 
 # -------------------------------------------------------
-# Particle Class and Other Functions
+# Generate the SWAP SOUND with correct array depth
+# -------------------------------------------------------
+def generate_ambient_chord_swap_sound(chord, duration=0.8, volume=0.3, sample_rate=44100):
+    """
+    Creates a short chord-based sound to signal a swap.
+    Adapts shape (mono/stereo) to match the mixer channels.
+    """
+    t = np.linspace(0, duration, int(sample_rate*duration), endpoint=False)
+    chord_signal = np.zeros_like(t)
+
+    for freq in chord:
+        base = np.sin(2*np.pi*(freq + 0.5*np.sin(2*np.pi*0.2*t))*t)
+        detuned = np.sin(2*np.pi*(freq*1.005 + 0.5*np.sin(2*np.pi*0.2*t))*t)
+        chord_signal += (base + detuned)/2
+    chord_signal /= len(chord)
+
+    fade_time = 0.15
+    fade_samples = int(sample_rate*fade_time)
+    envelope = np.ones_like(t)
+    if fade_samples > 0 and fade_samples < len(t)//2:
+        envelope[:fade_samples] = 0.5 - 0.5*np.cos(np.pi*np.linspace(0,1,fade_samples))
+        envelope[-fade_samples:] = 0.5 - 0.5*np.cos(np.pi*np.linspace(1,0,fade_samples))
+    chord_signal *= envelope * volume
+
+    # Convert to int16
+    data_mono = (chord_signal * 32767).astype(np.int16)
+
+    # Detect current mixer channels
+    mixer_init = pygame.mixer.get_init()  # returns (frequency, format, channels)
+    if mixer_init is None:
+        # Default to stereo if unknown
+        channels = 2
+    else:
+        _, _, channels = mixer_init
+
+    # If the mixer is mono, make a 1D array; if stereo, make a 2D array, etc.
+    if channels == 1:
+        data = data_mono  # shape: (samples,)
+    else:
+        # shape: (samples, channels)
+        data = np.repeat(data_mono[:, np.newaxis], channels, axis=1)
+
+    return pygame.sndarray.make_sound(data)
+
+# -------------------------------------------------------
+# Particle Class
 # -------------------------------------------------------
 class Particle:
-    """Represents a single particle in the simulation."""
-    __slots__ = ('x', 'y', 'radius', 'color', 'vx', 'vy', 'last_conversion_time')
-
+    __slots__ = ('x','y','radius','color','vx','vy','last_conversion_time')
     def __init__(self, x, y, radius, color, vx, vy):
         self.x = x
         self.y = y
@@ -117,65 +311,54 @@ class Particle:
         self.color = color
         self.vx = vx
         self.vy = vy
-        
-        # Track when this particle last converted another (or was converted)
         self.last_conversion_time = float('-inf')
 
     def move(self):
-        """Update position and handle wall collisions."""
         new_x = self.x + self.vx
         new_y = self.y + self.vy
         r = self.radius
 
-        # Horizontal bounds
         if new_x - r < 0 or new_x + r > RENDER_WIDTH:
             self.vx = -self.vx
         else:
             self.x = new_x
-
-        # Vertical bounds
         if new_y - r < 0 or new_y + r > RENDER_HEIGHT:
             self.vy = -self.vy
         else:
             self.y = new_y
 
     def draw(self, surface):
-        """Draw using the pre-rendered circle surface for its color."""
         surf = PARTICLE_SURF_MAP[self.color]
         surface.blit(surf, (int(self.x - self.radius), int(self.y - self.radius)))
 
-    def check_collision(self, other):
-        """Check if this particle is colliding with another."""
-        dx = self.x - other.x
-        dy = self.y - other.y
-        distance_squared = dx * dx + dy * dy
-        combined_radius = self.radius + other.radius
-        return distance_squared < (combined_radius * combined_radius)
-
-    def resolve_collision(self, other, current_time):
-        """Convert submissive particles to the dominant color if cooldown has elapsed."""
-        global dominant_color, submissive_color
+    def resolve_collision(self, other, current_time, current_tick):
+        global dominant_color, submissive_color, last_collision_sound_tick
 
         if self.color == dominant_color and other.color == submissive_color:
-            # Check if self is allowed to convert
             if (current_time - self.last_conversion_time) >= CONVERSION_COOLDOWN:
                 other.color = dominant_color
                 other.last_conversion_time = current_time
                 self.last_conversion_time = current_time
-
+                # Collision sound if cooldown
+                if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                    collision_sound.play()
+                    last_collision_sound_tick = current_tick
         elif other.color == dominant_color and self.color == submissive_color:
-            # Check if other is allowed to convert
             if (current_time - other.last_conversion_time) >= CONVERSION_COOLDOWN:
                 self.color = dominant_color
                 self.last_conversion_time = current_time
                 other.last_conversion_time = current_time
+                # Collision sound if cooldown
+                if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                    collision_sound.play()
+                    last_collision_sound_tick = current_tick
 
-
+# -------------------------------------------------------
+# Create Particles
+# -------------------------------------------------------
 def create_particles(color1_count, color2_count, speed, seed=None):
-    """Create particles with specified counts for two colors."""
     if seed is not None:
         random.seed(seed)
-
     particles = []
     r = PARTICLE_RADIUS
     max_x = RENDER_WIDTH - r
@@ -186,59 +369,62 @@ def create_particles(color1_count, color2_count, speed, seed=None):
         y = random.randint(r, max_y)
         vx = speed if random.random() < 0.5 else -speed
         vy = speed if random.random() < 0.5 else -speed
-        particles.append(Particle(x, y, r, COLOR1, vx, vy))
+        particles.append(Particle(x,y,r, COLOR1, vx, vy))
 
     for _ in range(color2_count):
         x = random.randint(r, max_x)
         y = random.randint(r, max_y)
         vx = speed if random.random() < 0.5 else -speed
         vy = speed if random.random() < 0.5 else -speed
-        particles.append(Particle(x, y, r, COLOR2, vx, vy))
+        particles.append(Particle(x,y,r, COLOR2, vx, vy))
 
     return particles
 
-
 def spatial_partitioning(particles):
-    """Organize particles into a spatial grid to optimize collision detection."""
     grid = {}
     size = GRID_SIZE
     for p in particles:
-        grid_x = int(p.x // size)
-        grid_y = int(p.y // size)
-        cell = (grid_x, grid_y)
-        if cell not in grid:
-            grid[cell] = []
-        grid[cell].append(p)
+        cell = (int(p.x // size), int(p.y // size))
+        grid.setdefault(cell, []).append(p)
     return grid
 
-
-def check_collisions(grid, current_time):
-    """Check for collisions using spatial partitioning."""
+def check_collisions(grid, current_time, current_tick):
     for (cx, cy), cell_particles in grid.items():
         cp_len = len(cell_particles)
-        # Collisions within the same cell
+        # same cell
         for i in range(cp_len):
             p_i = cell_particles[i]
-            for j in range(i + 1, cp_len):
+            xi = p_i.x
+            yi = p_i.y
+            ri = p_i.radius
+            for j in range(i+1, cp_len):
                 p_j = cell_particles[j]
-                if p_i.check_collision(p_j):
-                    p_i.resolve_collision(p_j, current_time)
-        # Collisions with neighboring cells
+                dx = xi - p_j.x
+                dy = yi - p_j.y
+                combined_radius = ri + p_j.radius
+                if dx*dx + dy*dy < combined_radius*combined_radius:
+                    p_i.resolve_collision(p_j, current_time, current_tick)
+        # neighbor cells
         for ox, oy in NEIGHBOR_OFFSETS:
-            neighbor = (cx + ox, cy + oy)
-            if neighbor in grid:
-                neighbor_particles = grid[neighbor]
+            neighbor_cell = (cx+ox, cy+oy)
+            if neighbor_cell in grid:
+                neighbor_particles = grid[neighbor_cell]
                 for p_i in cell_particles:
+                    xi = p_i.x
+                    yi = p_i.y
+                    ri = p_i.radius
                     for p_j in neighbor_particles:
-                        if p_i.check_collision(p_j):
-                            p_i.resolve_collision(p_j, current_time)
+                        dx = xi - p_j.x
+                        dy = yi - p_j.y
+                        combined_radius = ri + p_j.radius
+                        if dx*dx + dy*dy < combined_radius*combined_radius:
+                            p_i.resolve_collision(p_j, current_time, current_tick)
 
+last_dominant = None
 
 def check_last_particles(particles, elapsed_time):
-    """Check if the number of submissive particles is at the threshold and swap dominance."""
-    global dominant_color, submissive_color
+    global dominant_color, submissive_color, last_swap_sound_tick, last_dominant
 
-    # Determine the current threshold based on elapsed time
     if elapsed_time > FINAL_LAST_GROUP:
         threshold = FINAL_LAST_NUM_PARTICLES
     elif elapsed_time > SECOND_LAST_GROUP:
@@ -248,97 +434,89 @@ def check_last_particles(particles, elapsed_time):
     else:
         threshold = LAST_NUM_PARTICLES
 
-    # Count how many submissive particles remain
     sc = submissive_color
     submissive_count = sum(1 for p in particles if p.color == sc)
 
-    # If submissive particles reach the threshold, swap dominance
+    previous_dominant = dominant_color
     if submissive_count <= threshold:
         dominant_color, submissive_color = submissive_color, dominant_color
 
+    # if we swapped dominance, generate swap sound
+    if previous_dominant != dominant_color:
+        current_tick = pygame.time.get_ticks()
+        if current_tick - last_swap_sound_tick > SWAP_SOUND_COOLDOWN_MS:
+            chord_duration = AMBIENT_DURATION / len(AMBIENT_CHORDS)
+            chord_index = int((elapsed_time % AMBIENT_DURATION) // chord_duration)
+            current_chord = AMBIENT_CHORDS[chord_index]
+            swap_sound = generate_ambient_chord_swap_sound(current_chord, 0.8, 0.3, 44100)
+            swap_sound.play()
+            last_swap_sound_tick = current_tick
+        last_dominant = dominant_color
 
 def determine_initial_dominance():
-    """Determine the initial dominant and submissive colors based on their starting counts."""
-    global dominant_color, submissive_color
+    global dominant_color, submissive_color, last_dominant
     if COLOR1_COUNT < COLOR2_COUNT:
         dominant_color, submissive_color = COLOR1, COLOR2
     elif COLOR2_COUNT < COLOR1_COUNT:
         dominant_color, submissive_color = COLOR2, COLOR1
     else:
-        # Default if counts are equal
         dominant_color, submissive_color = COLOR1, COLOR2
+    last_dominant = dominant_color
 
-
+# -------------------------------------------------------
+# Main Loop
+# -------------------------------------------------------
 def main():
-    """Main simulation function."""
     global dominant_color, submissive_color
 
     determine_initial_dominance()
-
-    # Create particles
     particles = create_particles(COLOR1_COUNT, COLOR2_COUNT, PARTICLE_SPEED, seed=SEED)
-
-    # Clock for controlling FPS and tracking elapsed time
     clock = pygame.time.Clock()
 
-    # Fonts for scoreboard and winner overlay
     scoreboard_font = pygame.font.SysFont(None, SCOREBOARD_FONT_SIZE)
-    winner_font = pygame.font.SysFont(None, 72)
+    winner_font = pygame.font.SysFont(None, 55)
 
-    # This will store whether we've declared a winner (so we only do it once).
     winner_declared = False
     winner_text = ""
 
-    # Initial pause to view particles
+    # initial pause
     start_time = pygame.time.get_ticks()
     pause_duration = INITIAL_PAUSE_SECONDS * 1000
     while pygame.time.get_ticks() - start_time < pause_duration:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT or (
-                event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
-            ):
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 pygame.quit()
                 return
-
         render_surface.fill(BACKGROUND_COLOR)
         for particle in particles:
             particle.draw(render_surface)
-
-        # High-quality scaling to screen
         scaled_surface = pygame.transform.smoothscale(render_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        screen.blit(scaled_surface, (0, 0))
-
+        screen.blit(scaled_surface, (0,0))
         pygame.display.flip()
         clock.tick(FPS)
+    
+    # Play ambient
+    if ambient_sound:
+        ambient_sound.play(loops=-1)
 
-    # Main simulation loop
-    start_time = pygame.time.get_ticks()
+    sim_start_time = pygame.time.get_ticks()
     running = True
     while running:
-        current_ticks = pygame.time.get_ticks()
-        elapsed_time = (current_ticks - start_time) / 1000.0  # Elapsed time in seconds
+        current_tick = pygame.time.get_ticks()
+        elapsed_time = (current_tick - sim_start_time)/1000.0
 
-        # Event handling
         for event in pygame.event.get():
-            if event.type == pygame.QUIT or (
-                event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
-            ):
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 running = False
 
-        # Check thresholds and swap dominance if necessary
         check_last_particles(particles, elapsed_time)
-
-        # Spatial partitioning and collisions
         grid = spatial_partitioning(particles)
-        check_collisions(grid, elapsed_time)
+        check_collisions(grid, elapsed_time, current_tick)
 
-        # Clear and draw
         render_surface.fill(BACKGROUND_COLOR)
-        
-        # We'll track how many are each color
         color1_count = 0
         color2_count = 0
-        
+
         for particle in particles:
             particle.move()
             particle.draw(render_surface)
@@ -347,50 +525,41 @@ def main():
             else:
                 color2_count += 1
 
-        # Smooth scale for nice visuals
         scaled_surface = pygame.transform.smoothscale(render_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        screen.blit(scaled_surface, (0, 0))
+        screen.blit(scaled_surface, (0,0))
 
-        # --------------------------------------------------
-        # Scoreboard (if enabled)
-        # --------------------------------------------------
         if SHOW_SCOREBOARD:
-            # Prepare separate texts for the left and right sides
             left_text = f"{COLOR1_NAME}: {color1_count}"
             right_text = f"{COLOR2_NAME}: {color2_count}"
-            # Left scoreboard (top left)
-            left_pos = (15, 15)
-            draw_text_with_border(screen, left_text, scoreboard_font, COLOR1, (255, 255, 255), left_pos)
-            # Right scoreboard (top right)
-            right_text_width, _ = scoreboard_font.size(right_text)
-            right_pos = (SCREEN_WIDTH - right_text_width - 15, 15)
-            draw_text_with_border(screen, right_text, scoreboard_font, COLOR2, (255, 255, 255), right_pos)
+            left_pos = (23, 23)
+            draw_text_with_border(screen, left_text, scoreboard_font, COLOR1, (255,255,255), left_pos)
+            right_text_w, _ = scoreboard_font.size(right_text)
+            right_pos = (SCREEN_WIDTH - right_text_w - 23, 23)
+            draw_text_with_border(screen, right_text, scoreboard_font, COLOR2, (255,255,255), right_pos)
 
-        # --------------------------------------------------
-        # Check if one color is fully gone -> set winner
-        # --------------------------------------------------
+        # Check if winner
         if not winner_declared:
             if color1_count == 0:
                 winner_declared = True
                 winner_text = f"{COLOR2_NAME} WINS!"
+                if victory_sound:
+                    victory_sound.play()
             elif color2_count == 0:
                 winner_declared = True
                 winner_text = f"{COLOR1_NAME} WINS!"
+                if victory_sound:
+                    victory_sound.play()
 
-        # --------------------------------------------------
-        # Winner overlay (if enabled)
-        # --------------------------------------------------
-        # We do NOT pause or clear the background; just overlay the text
+        # Show winner overlay
         if SHOW_WINNER_OVERLAY and winner_declared and winner_text:
-            text_surface = winner_font.render(winner_text, True, (255, 255, 255))
-            text_rect = text_surface.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-            screen.blit(text_surface, text_rect)
+            text_surf = winner_font.render(winner_text, True, (255,255,255))
+            text_rect = text_surf.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
+            screen.blit(text_surf, text_rect)
 
         pygame.display.flip()
         clock.tick(FPS)
 
     pygame.quit()
-
 
 if __name__ == "__main__":
     main()

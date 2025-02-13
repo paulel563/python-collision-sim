@@ -19,34 +19,34 @@ PARTICLE_RADIUS = 40
 PARTICLE_SPEED = 0.5
 
 # Initial counts for letters
-LETTER1_COUNT = 250
-LETTER2_COUNT = 250
+LETTER1_COUNT = 300
+LETTER2_COUNT = 300
 
 # Threshold-based phase switching
-LAST_NUM_PARTICLES = 90
-MIDDLE_LAST_NUM_PARTICLES = 200
+LAST_NUM_PARTICLES = 70
+MIDDLE_LAST_NUM_PARTICLES = 180
 MIDDLE_GROUP = 8
-SECOND_LAST_NUM_PARTICLES = 50
+SECOND_LAST_NUM_PARTICLES = 40
 SECOND_LAST_GROUP = 11
 FINAL_LAST_NUM_PARTICLES = 0
-FINAL_LAST_GROUP = 31
+FINAL_LAST_GROUP = 29
 
 # These are purely for dominance/collision logic (not drawn as colors)
 LOGIC_COLOR1 = (255, 69, 0)      # For LETTER1 in logic
 LOGIC_COLOR2 = (0, 255, 255)     # For LETTER2 in logic
 
 # Letters (and scoreboard labels) to fight
-LETTER1 = "Q"  # "dominant" or "submissive" type 1
-LETTER2 = "V"  # "dominant" or "submissive" type 2
+LETTER1 = "E"  # "dominant" or "submissive" type 1
+LETTER2 = "T"  # "dominant" or "submissive" type 2
 
 # Actual display colors for each letter
-LETTER1_COLOR = (151, 215, 0)    # First color (Wicked Green)
-LETTER2_COLOR = (255, 102, 196)  # Second color (Wicket Pink)
+LETTER1_COLOR = (0, 0, 220)   # Blue
+LETTER2_COLOR = (0, 255, 127)   # Green
 
 BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 4
-CONVERSION_COOLDOWN = 0.06
+SEED = 8
+CONVERSION_COOLDOWN = 0.065
 INITIAL_PAUSE_SECONDS = 3
 GRID_SIZE = 50
 
@@ -73,6 +73,14 @@ last_collision_sound_tick = 0
 last_swap_sound_tick = 0
 
 # ------------------------------------------------------------------------
+# Sound Volume Configuration (Percentage)
+# ------------------------------------------------------------------------
+AMBIENT_VOLUME_PERCENT = 230   # Change to any value from 0 to 100
+COLLISION_VOLUME_PERCENT = 15
+SWAP_VOLUME_PERCENT = 120
+VICTORY_VOLUME_PERCENT = 90
+
+# ------------------------------------------------------------------------
 # Pygame Initialization and Sound Loading
 # ------------------------------------------------------------------------
 pygame.init()
@@ -88,16 +96,22 @@ victory_sound = None
 
 if os.path.exists("ambient.wav"):
     ambient_sound = pygame.mixer.Sound("ambient.wav")
+    # Set volume based on percentage
+    ambient_sound.set_volume(AMBIENT_VOLUME_PERCENT / 100.0)
 
-if os.path.exists("collision.wav"):
-    collision_sound = pygame.mixer.Sound("collision.wav")
+if os.path.exists("collision7.mp3"):
+    collision_sound = pygame.mixer.Sound("collision7.mp3")
+    # Set volume
+    collision_sound.set_volume(COLLISION_VOLUME_PERCENT / 100.0)
 
 # Load swap.wav if you have a separate swap sound
 if os.path.exists("swap.wav"):
     swap_sound = pygame.mixer.Sound("swap.wav")
+    swap_sound.set_volume(SWAP_VOLUME_PERCENT / 100.0)
 
 if os.path.exists("victory.wav"):
     victory_sound = pygame.mixer.Sound("victory.wav")
+    victory_sound.set_volume(VICTORY_VOLUME_PERCENT / 100.0)
 
 # High-resolution render surface
 render_surface = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT)).convert()
@@ -184,7 +198,7 @@ class Item:
     def resolve_collision(self, other, current_time):
         """
         If there's a valid color conversion (dominant -> submissive),
-        then play 'collision.wav' with a cooldown. 
+        then play 'collision.wav' with a cooldown.
         """
         global dominant_color, submissive_color
         global last_collision_sound_tick

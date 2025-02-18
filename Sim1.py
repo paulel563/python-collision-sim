@@ -19,12 +19,12 @@ PARTICLE_RADIUS = 40
 PARTICLE_SPEED = 0.5
 
 # Initial counts for letters
-LETTER1_COUNT = 300
-LETTER2_COUNT = 300
+LETTER1_COUNT = 250
+LETTER2_COUNT = 250
 
 # Threshold-based phase switching
-LAST_NUM_PARTICLES = 70
-MIDDLE_LAST_NUM_PARTICLES = 180
+LAST_NUM_PARTICLES = 80
+MIDDLE_LAST_NUM_PARTICLES = 75
 MIDDLE_GROUP = 8
 SECOND_LAST_NUM_PARTICLES = 40
 SECOND_LAST_GROUP = 11
@@ -32,22 +32,22 @@ FINAL_LAST_NUM_PARTICLES = 0
 FINAL_LAST_GROUP = 29
 
 # These are purely for dominance/collision logic (not drawn as colors)
-LOGIC_COLOR1 = (255, 69, 0)      # For LETTER1 in logic
-LOGIC_COLOR2 = (0, 255, 255)     # For LETTER2 in logic
+LOGIC_COLOR1 = (255, 69, 0)   # For LETTER1 in logic
+LOGIC_COLOR2 = (0, 255, 255)  # For LETTER2 in logic
 
 # Letters (and scoreboard labels) to fight
 LETTER1 = "K"
 LETTER2 = "D"
 
 # Actual display colors for each letter
-LETTER1_COLOR = (0, 0, 220)   # Blue
-LETTER2_COLOR = (220, 0, 0) # Green
+LETTER1_COLOR = (0, 0, 245)   # Blue
+LETTER2_COLOR = (245, 0, 0) # Green
 
 BACKGROUND_COLOR = (0, 0, 0)
 
 SEED = 8
 CONVERSION_COOLDOWN = 0.065
-INITIAL_PAUSE_SECONDS = 3  # Used for the original pause, now integrated into countdown
+INITIAL_PAUSE_SECONDS = 3  # This is our separate initial pause
 GRID_SIZE = 50
 
 NEIGHBOR_OFFSETS = [
@@ -75,11 +75,11 @@ last_swap_sound_tick = 0
 # ------------------------------------------------------------------------
 # Sound Volume Configuration (Percentage)
 # ------------------------------------------------------------------------
-AMBIENT_VOLUME_PERCENT = 230
-COLLISION_VOLUME_PERCENT = 15
-SWAP_VOLUME_PERCENT = 120
-VICTORY_VOLUME_PERCENT = 90
-START_VOLUME_PERCENT = 40  # Volume for the "start.wav" if you want to adjust
+AMBIENT_VOLUME_PERCENT = 240
+COLLISION_VOLUME_PERCENT = 11
+SWAP_VOLUME_PERCENT = 140
+VICTORY_VOLUME_PERCENT = 80
+START_VOLUME_PERCENT = 40  # Volume for the "start.wav" if you want to adjust it
 
 # ------------------------------------------------------------------------
 # Pygame Initialization and Sound Loading
@@ -145,7 +145,6 @@ def render_text_with_outline(font, text, text_color, outline_color=(255, 255, 25
     outline_surface.blit(base_surface, (outline_width, outline_width))
     return outline_surface
 
-
 # ------------------------------------------------------------------------
 # Create letter surfaces for each letter in its respective color
 # ------------------------------------------------------------------------
@@ -159,7 +158,6 @@ ITEM_SURF_MAP = {
     LOGIC_COLOR1: letter_surf_1,
     LOGIC_COLOR2: letter_surf_2
 }
-
 
 class Item:
     """
@@ -364,22 +362,40 @@ def main():
     winner_text = ""
 
     # --------------------------
-    # 3-SECOND COUNTDOWN + FALLING ANIMATION
+    # 1) Initial Pause
     # --------------------------
-    # We break it into three 1-second segments: 3, 2, 1
-    # Each second:
-    #    - We briefly play a collision sound (if any) once
-    #    - Items "fall" from start_y to final_y in incremental progress
+    start_time = pygame.time.get_ticks()
+    pause_duration = INITIAL_PAUSE_SECONDS * 1000
+    while pygame.time.get_ticks() - start_time < pause_duration:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                pygame.quit()
+                return
+
+        # We just show them where they are (off-screen) without moving or falling
+        render_surface.fill(BACKGROUND_COLOR)
+        for it in items:
+            # Just draw them at their current position (which is start_y)
+            it.draw(render_surface)
+
+        scaled_surface = pygame.transform.smoothscale(render_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        screen.blit(scaled_surface, (0, 0))
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+    # --------------------------
+    # 2) 3-SECOND COUNTDOWN + FALLING ANIMATION
+    # --------------------------
     countdown_font = pygame.font.SysFont(None, 100)
-    total_countdown_ms = 3000  # 3 seconds total
 
     for second in [3, 2, 1]:
-        # Play collision sound once at the start of each 1-second segment (optional "beep")
+        # Optional beep at the start of each 1-second segment
         if collision_sound:
             collision_sound.play()
 
         segment_start_time = pygame.time.get_ticks()
-        while pygame.time.get_ticks() - segment_start_time < 1000:  # one second chunk
+        while pygame.time.get_ticks() - segment_start_time < 1000:  # one-second chunk
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     pygame.quit()
@@ -390,8 +406,7 @@ def main():
             fraction = segment_elapsed / 1000.0
 
             # We figure out the overall fraction of the 3-second fall
-            # chunk_index: 0 for second=3, 1 for second=2, 2 for second=1
-            chunk_index = 3 - second
+            chunk_index = 3 - second  # 0,1,2 for second=3,2,1
             start_frac = chunk_index / 3.0
             end_frac = (chunk_index + 1) / 3.0
             overall_progress = start_frac + (end_frac - start_frac) * fraction
@@ -417,13 +432,13 @@ def main():
             clock.tick(FPS)
 
     # --------------------------
-    # After countdown, play a start sound if available
+    # 3) After countdown, play a start sound if available
     # --------------------------
     if start_sound:
         start_sound.play()
 
     # --------------------------
-    # Start ambient loop & normal simulation
+    # 4) Start ambient loop & normal simulation
     # --------------------------
     if ambient_sound:
         ambient_sound.play(loops=-1)
@@ -470,14 +485,14 @@ def main():
             text_left = f"{LETTER1}: {count_type1}"
             scoreboard_surf_left = render_text_with_outline(scoreboard_font, text_left, LETTER1_COLOR,
                                                             (255, 255, 255), 2)
-            screen.blit(scoreboard_surf_left, (23, 23))
+            screen.blit(scoreboard_surf_left, (10, 10))
 
             # Right scoreboard (LETTER2)
             text_right = f"{LETTER2}: {count_type2}"
             scoreboard_surf_right = render_text_with_outline(scoreboard_font, text_right, LETTER2_COLOR,
                                                              (255, 255, 255), 2)
             right_width = scoreboard_surf_right.get_width()
-            screen.blit(scoreboard_surf_right, (SCREEN_WIDTH - right_width - 23, 23))
+            screen.blit(scoreboard_surf_right, (SCREEN_WIDTH - right_width - 10, 10))
 
         # Winner check
         if not winner_declared:

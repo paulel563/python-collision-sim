@@ -17,25 +17,25 @@ PARTICLE_RADIUS = 15
 PARTICLE_SPEED = 0.71
 COLOR1_COUNT = 700    # Number of particles of COLOR1
 COLOR2_COUNT = 700    # Number of particles of COLOR2
-LAST_NUM_PARTICLES = 185  # Threshold for a forced color dominance swap
+LAST_NUM_PARTICLES = 200  # Threshold for a forced color dominance swap
 
-MIDDLE_LAST_NUM_PARTICLES = 290
-MIDDLE_GROUP = 9
+MIDDLE_LAST_NUM_PARTICLES = 255
+MIDDLE_GROUP = 10
 
-SECOND_LAST_NUM_PARTICLES = 50
+SECOND_LAST_NUM_PARTICLES = 65
 SECOND_LAST_GROUP = 18
 
 FINAL_LAST_NUM_PARTICLES = 0
-FINAL_LAST_GROUP = 29
+FINAL_LAST_GROUP = 26
 
-COLOR2 = (0, 191, 255)     # First color (Sky Blue)
-COLOR1 = (255, 0, 127)     # Second color (Hot Pink)
-COLOR2_NAME = "Sky Blue"
-COLOR1_NAME = "Hot Pink"
+COLOR2 = (250, 0, 5)     # First color (Red)
+COLOR1 = (5, 250, 0)    # Second color (Blue)
+COLOR2_NAME = "Red"
+COLOR1_NAME = "Green"
 
 BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 13
+SEED = 4
 CONVERSION_COOLDOWN = 0.06
 INITIAL_PAUSE_SECONDS = 3
 GRID_SIZE = 50

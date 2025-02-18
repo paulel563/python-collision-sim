@@ -110,6 +110,11 @@ COLOR1 = (170, 25, 0)      # Second color (Red-Orange)
 COLOR2_NAME = "Purple"
 COLOR1_NAME = "Red"
 
+COLOR2 = (0, 10, 220)     # First color (Blue)
+COLOR1 = (0, 245, 50)     # Second color ( (light)Green)
+COLOR2_NAME = "Blue"
+COLOR1_NAME = "Green"
+
 
 
 

@@ -29,23 +29,23 @@ MIDDLE_GROUP = 8
 SECOND_LAST_NUM_PARTICLES = 40
 SECOND_LAST_GROUP = 11
 FINAL_LAST_NUM_PARTICLES = 0
-FINAL_LAST_GROUP = 29
+FINAL_LAST_GROUP = 27
 
 # These are purely for dominance/collision logic (not drawn as colors)
 LOGIC_COLOR1 = (255, 69, 0)   # For LETTER1 in logic
 LOGIC_COLOR2 = (0, 255, 255)  # For LETTER2 in logic
 
 # Letters (and scoreboard labels) to fight
-LETTER1 = "K"
-LETTER2 = "D"
+LETTER1 = "O"
+LETTER2 = "S"
 
 # Actual display colors for each letter
-LETTER1_COLOR = (0, 0, 245)   # Blue
-LETTER2_COLOR = (245, 0, 0) # Green
+LETTER1_COLOR = (0,129,167)  # First color water
+LETTER2_COLOR = (240,237,164)  # Second color sand
 
 BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 8
+SEED = 1
 CONVERSION_COOLDOWN = 0.065
 INITIAL_PAUSE_SECONDS = 3  # This is our separate initial pause
 GRID_SIZE = 50

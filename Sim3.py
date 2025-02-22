@@ -54,7 +54,7 @@ LOGIC_COLOR2 = (0, 255, 255)  # For Team2 in logic
 # Colors used for scoreboard text, same as old LETTER1_COLOR / LETTER2_COLOR
 # ------------------------------------------------------------------------
 TEAM1_TEXT_COLOR = (0, 129, 167)   # First color (was LETTER1_COLOR)
-TEAM2_TEXT_COLOR = (240, 237, 164) # Second color (was LETTER2_COLOR)
+TEAM2_TEXT_COLOR = (255, 90, 0)  # second color (Orange-ish)
 
 BACKGROUND_COLOR = (0, 0, 0)
 

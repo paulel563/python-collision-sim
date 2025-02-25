@@ -12,17 +12,17 @@ from Box2D import b2World, b2ContactListener, b2EdgeShape
 SEED = 42
 
 # Screen settings
-SCREEN_WIDTH = 432
-SCREEN_HEIGHT = 768
-SCREEN_BACKGROUND_COLOR = (23, 23, 23)
+SCREEN_WIDTH = 432       # Display window width
+SCREEN_HEIGHT = 768      # Display window height
+SCREEN_BACKGROUND_COLOR = (0, 0, 29)
 
 # Physics and Pygame updates
 FRAMERATE = 60
 PPM = 10.0  # Pixels per meter
 
-# Gravity will be made to "bounce around" rather than just going straight down
-GRAVITY_MAG = 20        # Gravity magnitude
-GRAVITY_ROT_SPEED = 0.5 # How fast gravity rotates
+# Gravity rotates around to "bounce"
+GRAVITY_MAG = 20         # Gravity magnitude
+GRAVITY_ROT_SPEED = 0.005  # How fast gravity rotates
 
 # Ball settings
 BALL_RADIUS = 1
@@ -31,17 +31,19 @@ BALL_COLOR = (255, 255, 255)
 # Rings settings
 NUM_RINGS = 12
 INITIAL_RING_RADIUS = 5
-RING_RADIUS_INCREMENT = 1.4
+RING_DISTANCE = 1.4       # adjustable gap between rings
 INITIAL_ROTATION_SPEED = 1
 ROTATION_SPEED_MULTIPLIER = 1.005
 INITIAL_HUE = 0
 RING_LINE_THICKNESS = 4
 
-# The ring code uses "size=50" for a circular ring, and has special logic for "size=3 or 4"
-# We'll keep that logic intact but still allow you to change these if needed.
-RING_SEGMENT_COUNT = 72
+# For the ring shape logic in the code:
+RING_SEGMENT_COUNT = 50
 TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
+
+# NEW: We introduced this variable for the ring gap angle
+CIRCLE_GAP_END_ANGLE = 320.0
 
 # Explosion / Particle settings
 PARTICLE_COUNT = 20
@@ -53,6 +55,22 @@ PARTICLE_SPEED_MIN = 0.1
 PARTICLE_SPEED_MAX = 1
 PARTICLE_LIFE_MIN = 100
 PARTICLE_LIFE_MAX = 1000
+
+# Initial pause at the start of the game (in seconds)
+INITIAL_PAUSE_TIME = 3.0
+
+# =========== Sound Configuration ============
+# One main collision sound (we’ll advance through it snippet by snippet)
+MAIN_SOUND_FILE = "assets/music.wav"
+
+# The snippet length each collision plays (in seconds)
+SNIPPET_DURATION = 0.05
+
+# Minimum time between collision sounds (avoid rapid-fire sounds)
+MIN_COLLISION_SOUND_DELAY = 0.06
+
+# The “destroy” sound (for ring destruction)
+DESTROY_SOUND_FILE = "assets/pickupCoin.wav"
 
 # Initialize the random seed
 random.seed(SEED)
@@ -91,14 +109,14 @@ class Utils:
         self.clock = pygame.time.Clock()
 
         self.PPM = PPM  # Pixels per meter
-        # We'll start gravity at (0, -GRAVITY_MAG), but we’ll rotate it each frame:
+        # We'll start gravity at (0, -GRAVITY_MAG), but rotate it each frame:
         self.world = b2World(gravity=(0, -GRAVITY_MAG), doSleep=True)
 
         self.contactListener = MyContactListener()
         self.world.contactListener = self.contactListener
 
         # We'll keep track of an angle for gravity so that it "bounces around"
-        self.gravityAngle = -math.pi / 2  # starting direction (straight down)
+        self.gravityAngle = -math.pi / 2  # start direction (straight down)
 
     def to_Pos(self, pos):
         """Convert from Box2D to Pygame coordinates."""
@@ -123,7 +141,10 @@ class Utils:
         return self.dt
 
     def hueToRGB(self, hue):
-        # Convert HSV to RGB
+        """
+        Convert HSV (with hue in [0,1], full saturation, full brightness)
+        to an RGB color. This cycles through all possible hues.
+        """
         r, g, b = colorsys.hsv_to_rgb(hue, 1, 1)
         # Scale RGB values to 0-255 range
         return (int(r * 255), int(g * 255), int(b * 255))
@@ -233,12 +254,15 @@ class Ring:
         self.destroyFlag = False
 
     def create_edge_shape(self):
-        # Keeping the original logic intact:
+        """
+        This draws the ring edges for angles [0..CIRCLE_GAP_END_ANGLE].
+        The rest is left open, creating the gap in the ring.
+        """
         if self.size == RING_SEGMENT_COUNT:  # was 50
             for i in range(self.size):
                 angle = i * (360 / self.size)
-                # Original code had a hole from angle 0->320 (excluded?), we keep it:
-                if 0 <= angle <= 320:
+                # Only draw edges if the angle is within 0..CIRCLE_GAP_END_ANGLE
+                if 0 <= angle <= CIRCLE_GAP_END_ANGLE:
                     v1 = self.vertices[i]
                     v2 = self.vertices[(i + 1) % self.size]
                     edge = b2EdgeShape(vertices=[v1, v2])
@@ -273,12 +297,14 @@ class Ring:
                         shape=edge, density=1, friction=0.0, restitution=1.0
                     )
 
-    def draw(self):
+    def draw(self, paused=False):
         global utils
-        self.hue = (self.hue + utils.deltaTime() / 5) % 1
-        self.color = utils.hueToRGB(self.hue)
+        # Only update the hue/rotation if not paused
+        if not paused:
+            self.hue = (self.hue + utils.deltaTime() / 5) % 1
+            self.body.angle += self.rotateDir * utils.deltaTime()
 
-        self.body.angle += self.rotateDir * utils.deltaTime()
+        self.color = utils.hueToRGB(self.hue)
         self.draw_edges()
 
     def draw_edges(self):
@@ -306,35 +332,47 @@ class Ring:
 class Sounds:
     def __init__(self):
         mixer.init()
-        # Example asset references (ensure these files exist in your assets folder)
-        self.destroySound = pygame.mixer.Sound("assets/pickupCoin.wav")
 
-        self.sounds = [
-            pygame.mixer.Sound("assets/Untitled.wav"),
-            pygame.mixer.Sound("assets/Untitled (1).wav"),
-            pygame.mixer.Sound("assets/Untitled (2).wav"),
-            pygame.mixer.Sound("assets/Untitled (3).wav"),
-            pygame.mixer.Sound("assets/Untitled (4).wav"),
-            pygame.mixer.Sound("assets/Untitled (5).wav"),
-            pygame.mixer.Sound("assets/Untitled (6).wav"),
-            pygame.mixer.Sound("assets/Untitled (7).wav"),
-            pygame.mixer.Sound("assets/Untitled (8).wav"),
-            pygame.mixer.Sound("assets/Untitled (9).wav"),
-            pygame.mixer.Sound("assets/Untitled (10).wav"),
-            pygame.mixer.Sound("assets/Untitled (11).wav"),
-        ]
-        self.i = 0
+        # Load our single main sound file (for collisions)
+        self.mainSound = pygame.mixer.Sound(MAIN_SOUND_FILE)
+        # Length of entire audio (in seconds)
+        self.mainSoundLength = self.mainSound.get_length()
 
-    def play(self):
-        # stop all sound
-        for sound in self.sounds:
-            sound.stop()
-        # play sound
-        sound = self.sounds[self.i]
-        sound.play()
-        self.i += 1
-        if self.i >= len(self.sounds):
-            self.i = 0
+        # Current offset in the track (where next snippet will begin)
+        self.mainSoundOffset = 0.0
+
+        # We need to track when we last played a snippet
+        self.lastSnippetTime = 0.0  # in seconds (using pygame.time.get_ticks()/1000)
+
+        # Also load the separate destroy sound
+        self.destroySound = pygame.mixer.Sound(DESTROY_SOUND_FILE)
+
+    def playCollisionSnippet(self, currentTime):
+        """
+        Play a short snippet of mainSound, starting at mainSoundOffset,
+        only if at least MIN_COLLISION_SOUND_DELAY has passed since last snippet.
+        Then advance the offset by SNIPPET_DURATION, looping if needed.
+        """
+        timeSinceLast = currentTime - self.lastSnippetTime
+        if timeSinceLast >= MIN_COLLISION_SOUND_DELAY:
+            # Find a free channel (None if no channels available)
+            channel = pygame.mixer.find_channel()
+            if channel is not None:
+                channel.play(
+                    self.mainSound,
+                    loops=0,
+                    maxtime=int(SNIPPET_DURATION * 1000),
+                    fade_ms=0,
+                    start=self.mainSoundOffset
+                )
+
+                # Advance the offset by SNIPPET_DURATION
+                self.mainSoundOffset += SNIPPET_DURATION
+                if self.mainSoundOffset >= self.mainSoundLength:
+                    # Loop back to start if we exceed total length
+                    self.mainSoundOffset = 0.0
+
+                self.lastSnippetTime = currentTime
 
     def playDestroySound(self):
         self.destroySound.play()
@@ -360,25 +398,31 @@ class Game:
 
         for i in range(NUM_RINGS):
             ring = Ring(self.center, radius, rotateSpeed, RING_SEGMENT_COUNT, hue)
-            radius += RING_RADIUS_INCREMENT
+            radius += RING_DISTANCE           # adjustable gap between rings
             rotateSpeed *= ROTATION_SPEED_MULTIPLIER
             hue += 1 / NUM_RINGS
             self.rings.append(ring)
 
     def update(self):
+        """
+        Update the physics world and game state.
+        """
         global utils
         global sounds
 
         utils.world.Step(1.0 / 60.0, 6, 2)
 
-        # check collisions
-        if utils.contactListener:
-            for bodyA, bodyB in utils.contactListener.collisions:
-                sounds.play()
-                break
-            utils.contactListener.collisions = []
+        # Check collisions
+        # If collisions occurred, we play our snippet (once per frame).
+        # If you prefer to handle each collision individually, you could
+        # do so, but typically a single snippet per frame is enough.
+        if utils.contactListener and len(utils.contactListener.collisions) > 0:
+            currentTime = pygame.time.get_ticks() / 1000.0
+            sounds.playCollisionSnippet(currentTime)
+            # Clear collisions so we don't keep playing snippet
+            utils.contactListener.collisions.clear()
 
-        # ring destruction logic
+        # Ring destruction logic
         if len(self.rings) > 0:
             # if ball is outside the ring radius => destroy ring
             if self.center.distance_to(self.ball.getPos()) > self.rings[0].radius * 10:
@@ -398,10 +442,14 @@ class Game:
             if len(exp.particles) == 0:
                 self.particles.remove(exp)
 
-    def draw(self):
+    def draw(self, paused=False):
+        """
+        Draw the rings, ball, and particle explosions.
+        If paused=True, the rings won't rotate or change color.
+        """
         global utils
         for ring in self.rings:
-            ring.draw()
+            ring.draw(paused=paused)
         self.ball.draw()
 
         for exp in self.particles:
@@ -420,17 +468,35 @@ def main():
 
     game = Game()
 
-    while True:
-        utils.screen.fill(SCREEN_BACKGROUND_COLOR)
-        utils.calDeltaTime()
+    # Pause timer
+    pause_time_remaining = INITIAL_PAUSE_TIME
 
+    while True:
+        # Check events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
+            # Exit on ESC
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    return
 
-        game.update()
-        game.draw()
+        # Calculate deltaTime (also rotates gravity)
+        utils.calDeltaTime()
+
+        # Fill background
+        utils.screen.fill(SCREEN_BACKGROUND_COLOR)
+
+        # If we still have pause time, reduce it but skip game updates
+        if pause_time_remaining > 0:
+            pause_time_remaining -= utils.deltaTime()
+            game.draw(paused=True)
+        else:
+            # Otherwise update and draw as normal
+            game.update()
+            game.draw(paused=False)
 
         pygame.display.flip()
 

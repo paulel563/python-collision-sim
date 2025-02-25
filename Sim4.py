@@ -1,316 +1,468 @@
-import pygame
 import math
 import random
-import sys
-import time
+import colorsys
+import pygame
+from pygame import Vector2, DOUBLEBUF, mixer
+from Box2D import b2World, b2ContactListener, b2EdgeShape
 
-################################################################################
-# ----------------------------- CONFIGURABLE VARS ----------------------------- #
-################################################################################
+###############################################################################
+# CONFIGURABLE VARIABLES
+###############################################################################
+# Random seed
+SEED = 42
 
-# Window and render configuration
-SCREEN_WIDTH = 432     # Display window width
-SCREEN_HEIGHT = 768    # Display window height
-RENDER_WIDTH = 1080    # Render resolution width
-RENDER_HEIGHT = 1920   # Render resolution height
-FPS = 60
+# Screen settings
+SCREEN_WIDTH = 432       # Display window width
+SCREEN_HEIGHT = 768      # Display window height
+SCREEN_BACKGROUND_COLOR = (0, 0, 29)
 
-# Simulation settings
-INITIAL_PAUSE_TIME = 3.0   # seconds to pause (scene is frozen) before the ball starts moving
-RANDOM_SEED = 2            # set to None for a different random each run
-NUM_RINGS = 8             # number of rings
-RING_GAP_DEGREES = 35      # gap size in degrees for each ring
-RING_THICKNESS = 20        # thickness of each ring
+# Physics and Pygame updates
+FRAMERATE = 60
+PPM = 10.0  # Pixels per meter
 
-# Radial gap between rings
-RING_RADIAL_GAP = 40
+# Gravity rotates around to "bounce"
+GRAVITY_MAG = 20         # Gravity magnitude
+GRAVITY_ROT_SPEED = 0.005  # How fast gravity rotates
 
-# Ring rotation & dissolve properties
-RING_ROTATION_SPEED = 2     # degrees per frame for ring rotation
-RING_PARTICLE_COUNT = 50    # number of particles when a ring dissolves
-RING_PARTICLE_SPEED = 1.0   # speed at which ring particles move outward
-RING_PARTICLE_FADE_SPEED = 4  # how quickly particles fade (alpha decrement per frame)
+# Ball settings
+BALL_RADIUS = 1
+BALL_COLOR = (255, 255, 255)
 
-# Alternate ring colors
-RING_COLOR1 = (255, 200, 0)  # warm yellow
-RING_COLOR2 = (0, 200, 255)  # cool blue
+# Rings settings
+NUM_RINGS = 12
+INITIAL_RING_RADIUS = 5
+RING_DISTANCE = 1.4       # You can change this to increase/decrease ring spacing
+INITIAL_ROTATION_SPEED = 1
+ROTATION_SPEED_MULTIPLIER = 1.04
+INITIAL_HUE = 0
+RING_LINE_THICKNESS = 4
 
-# Ball properties
-BALL_SIZE = 15              # radius of the ball
-BALL_COLOR = (255, 255, 255)  # ball color (white)
-BALL_SPEED = 8.0           # initial ball speed (pixels per frame)
-BALL_BOUNCINESS = 1.0       # multiplier for velocity on bounce (1.0 = elastic)
+# For the ring shape logic in the code:
+RING_SEGMENT_COUNT = 50
+TRIANGLE_SIZE = 3
+SQUARE_SIZE = 4
 
-# Maximum random angle (in degrees) for bounce perturbation.
-BOUNCE_MAX_ANGLE_DEGREES = 25  
+# NEW VARIABLE: the max angle (0..360) where edges are drawn. The rest is the gap.
+CIRCLE_GAP_END_ANGLE = 310.0
 
-# Increase in ball speed when passing through a gap.
-BALL_SPEED_INCREMENT = 4.0
+# Explosion / Particle settings
+PARTICLE_COUNT = 20
+PARTICLE_SIZE_MIN = 0.5
+PARTICLE_SIZE_MAX = 2
+PARTICLE_ANGLE_MIN = 0
+PARTICLE_ANGLE_MAX = 360
+PARTICLE_SPEED_MIN = 0.1
+PARTICLE_SPEED_MAX = 1
+PARTICLE_LIFE_MIN = 100
+PARTICLE_LIFE_MAX = 1000
 
-# Sound settings
-COLLISION_SOUND_PATH = "collision7.mp3"  # collision sound file path
-SOUND_VOLUME = 0.4         # volume for collision sound (0.0 - 1.0)
-COLLISION_SOUND_DELAY = 0.055  # delay (in seconds) before collision sound can be played again
+# Initial pause at the start of the game (in seconds)
+INITIAL_PAUSE_TIME = 3.0
 
-RING_POP_SOUND_PATH = "start.wav"  # sound file for ring pop/break
-RING_POP_SOUND_VOLUME = 0.6        # volume for ring pop sound
+# Initialize the random seed
+random.seed(SEED)
 
-# Text settings
-TEXT_COLOR = (255, 255, 255)
-TEXT_SIZE = 36           # font size for bounce count
+###############################################################################
+# MyContactListener
+###############################################################################
+class MyContactListener(b2ContactListener):
+    def __init__(self):
+        super(MyContactListener, self).__init__()
+        self.collisions = []
 
-# Behavior after escape
-LINGER_TIME_AFTER_ESCAPE = 2.0  # seconds to wait after ball escapes before quitting
+    def BeginContact(self, contact):
+        fixtureA = contact.fixtureA
+        fixtureB = contact.fixtureB
+        bodyA = fixtureA.body
+        bodyB = fixtureB.body
 
-################################################################################
-def is_in_gap(ball_angle, ring_angle, gap_degrees):
-    """
-    Returns True if ball_angle (in degrees) is within the gap defined by
-    [ring_angle, ring_angle + gap_degrees] (angles wrapped mod360).
-    """
-    ball_angle %= 360
-    start = ring_angle % 360
-    end = (ring_angle + gap_degrees) % 360
-    if start <= end:
-        return start <= ball_angle <= end
-    else:
-        # Gap wraps past 360
-        return ball_angle >= start or ball_angle <= end
+        # Check if one of the fixtures is the ring and the other is the ball
+        if (isinstance(bodyA.userData, Ring) and isinstance(bodyB.userData, Ball)) \
+           or (isinstance(bodyA.userData, Ball) and isinstance(bodyB.userData, Ring)):
+            self.collisions.append((bodyA, bodyB))
 
-def reflect_velocity(ball_vel, normal, bounciness=1.0):
-    """
-    Reflect a velocity vector (vx, vy) about a normalized normal (nx, ny).
-    """
-    vx, vy = ball_vel
-    nx, ny = normal
-    dot = vx * nx + vy * ny
-    rx = vx - 2 * dot * nx
-    ry = vy - 2 * dot * ny
-    return (rx * bounciness, ry * bounciness)
+###############################################################################
+# Utils
+###############################################################################
+class Utils:
+    def __init__(self):
+        pygame.init()
+        self.width = SCREEN_WIDTH
+        self.height = SCREEN_HEIGHT
 
-def perturb_velocity(vx, vy):
-    """
-    After a collision, perturb the velocity by a random angle chosen uniformly
-    from -BOUNCE_MAX_ANGLE_DEGREES to +BOUNCE_MAX_ANGLE_DEGREES.
-    """
-    angle = math.atan2(vy, vx)
-    angle_offset = math.radians(random.uniform(-BOUNCE_MAX_ANGLE_DEGREES, BOUNCE_MAX_ANGLE_DEGREES))
-    new_angle = angle + angle_offset
-    mag = math.hypot(vx, vy)
-    return (mag * math.cos(new_angle), mag * math.sin(new_angle))
+        self.screen = pygame.display.set_mode((self.width, self.height), DOUBLEBUF, 16)
 
-class Ring:
-    """
-    Represents a ring with a given radius, rotation, color, and dissolve state.
-    """
-    def __init__(self, radius, direction, index, color):
-        self.radius = radius
-        self.direction = direction  # +1 or -1
-        self.rotation_angle = 0
-        self.state = "active"       # "active", "dissolving", or "dissolved"
-        self.particles = []
-        self.index = index
+        self.dt = 0
+        self.clock = pygame.time.Clock()
+
+        self.PPM = PPM  # Pixels per meter
+        # We'll start gravity at (0, -GRAVITY_MAG), but we’ll rotate it each frame:
+        self.world = b2World(gravity=(0, -GRAVITY_MAG), doSleep=True)
+
+        self.contactListener = MyContactListener()
+        self.world.contactListener = self.contactListener
+
+        # We'll keep track of an angle for gravity so that it "bounces around"
+        self.gravityAngle = -math.pi / 2  # start direction (straight down)
+
+    def to_Pos(self, pos):
+        """Convert from Box2D to Pygame coordinates."""
+        return (pos[0] * self.PPM, self.height - (pos[1] * self.PPM))
+
+    def from_Pos(self, pos):
+        """Convert from Pygame to Box2D coordinates."""
+        return (pos[0] / self.PPM, (self.height - pos[1]) / self.PPM)
+
+    def calDeltaTime(self):
+        # calculate deltaTime
+        t = self.clock.tick(FRAMERATE)
+        self.dt = t / 1000
+
+        # Rotate gravity so it moves around in a circle
+        self.gravityAngle += GRAVITY_ROT_SPEED * self.dt
+        gx = GRAVITY_MAG * math.cos(self.gravityAngle)
+        gy = GRAVITY_MAG * math.sin(self.gravityAngle)
+        self.world.gravity = (gx, gy)
+
+    def deltaTime(self):
+        return self.dt
+
+    def hueToRGB(self, hue):
+        """
+        Convert HSV (with hue in [0,1], full saturation, full brightness)
+        to an RGB color. This cycles through all possible hues.
+        """
+        r, g, b = colorsys.hsv_to_rgb(hue, 1, 1)
+        # Scale RGB values to 0-255 range
+        return (int(r * 255), int(g * 255), int(b * 255))
+
+###############################################################################
+# Ball
+###############################################################################
+class Ball:
+    def __init__(self, pos, radius, color):
+        global utils
         self.color = color
+        self.radius = radius
+        self.circle_body = utils.world.CreateDynamicBody(position=utils.from_Pos((pos.x, pos.y)))
+        self.circle_shape = self.circle_body.CreateCircleFixture(
+            radius=self.radius, density=1, friction=0.0, restitution=1.0
+        )
+        self.circle_body.userData = self
+        self.destroyFlag = False
+
+    def draw(self):
+        global utils
+        for fixture in self.circle_body.fixtures:
+            self.draw_circle(fixture.shape, self.circle_body, fixture)
+
+    def draw_circle(self, circle, body, fixture):
+        global utils
+        position = utils.to_Pos(body.transform * circle.pos)
+        pygame.draw.circle(utils.screen, self.color, [int(x) for x in position],
+                           int(circle.radius * utils.PPM))
+
+    def getPos(self):
+        global utils
+        p = utils.to_Pos(self.circle_body.position)
+        return Vector2(p[0], p[1])
+
+###############################################################################
+# Particle and Explosion
+###############################################################################
+class Particle:
+    def __init__(self, x, y, color):
+        # Size
+        self.radius = random.uniform(PARTICLE_SIZE_MIN, PARTICLE_SIZE_MAX)
+
+        # Direction and speed
+        angle = random.uniform(PARTICLE_ANGLE_MIN, PARTICLE_ANGLE_MAX)
+        speed = random.uniform(PARTICLE_SPEED_MIN, PARTICLE_SPEED_MAX)
+
+        self.x = x
+        self.y = y
+        self.color = color
+        self.vel_x = math.cos(math.radians(angle)) * speed
+        self.vel_y = math.sin(math.radians(angle)) * speed
+
+        # Lifetime
+        self.life = random.randint(PARTICLE_LIFE_MIN, PARTICLE_LIFE_MAX)
 
     def update(self):
-        if self.state == "active":
-            self.rotation_angle = (self.rotation_angle + RING_ROTATION_SPEED * self.direction) % 360
-        elif self.state == "dissolving":
-            new_particles = []
-            for p in self.particles:
-                p["radius"] += RING_PARTICLE_SPEED
-                p["alpha"] -= RING_PARTICLE_FADE_SPEED
-                if p["alpha"] > 0:
-                    new_particles.append(p)
-            self.particles = new_particles
-            if not self.particles:
-                self.state = "dissolved"
+        self.x += self.vel_x
+        self.y += self.vel_y
+        self.life -= 1
 
-    def start_dissolve(self):
-        self.state = "dissolving"
+    def draw(self, screen):
+        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), int(self.radius))
+
+class Explosion:
+    def __init__(self, x, y, color):
+        # Create particles
         self.particles = []
-        for i in range(RING_PARTICLE_COUNT):
-            angle_deg = (360 / RING_PARTICLE_COUNT) * i
-            self.particles.append({
-                "base_angle": angle_deg,
-                "radius": self.radius,
-                "alpha": 255
-            })
+        COLORS = [color]  # can expand if desired
+        for _ in range(PARTICLE_COUNT):
+            chosen_color = random.choice(COLORS)
+            particle = Particle(x, y, chosen_color)
+            self.particles.append(particle)
 
+    def update(self):
+        for particle in self.particles:
+            particle.update()
+        self.particles = [p for p in self.particles if p.life > 0]
+
+    def draw(self):
+        global utils
+        for particle in self.particles:
+            particle.draw(utils.screen)
+
+###############################################################################
+# Ring
+###############################################################################
+class Ring:
+    def __init__(self, pos, radius, rotateDir, size, hue):
+        global utils
+        self.color = (255, 255, 255)
+        self.radius = radius
+        self.rotateDir = rotateDir
+        self.size = size
+        self.vertices = []
+        for i in range(self.size):
+            angle = i * (2 * math.pi / self.size)
+            x = radius * math.cos(angle)
+            y = radius * math.sin(angle)
+            self.vertices.append((x, y))
+
+        self.body = utils.world.CreateStaticBody(position=utils.from_Pos(pos))
+        self.body.userData = self
+
+        self.create_edge_shape()
+        self.hue = hue
+        self.destroyFlag = False
+
+    def create_edge_shape(self):
+        """
+        This draws the ring edges for angles [0..CIRCLE_GAP_END_ANGLE].
+        The rest is left open, creating the gap in the ring.
+        """
+        if self.size == RING_SEGMENT_COUNT:  # was 50
+            for i in range(self.size):
+                angle = i * (360 / self.size)
+                # Only draw edges if the angle is within 0..CIRCLE_GAP_END_ANGLE
+                if 0 <= angle <= CIRCLE_GAP_END_ANGLE:
+                    v1 = self.vertices[i]
+                    v2 = self.vertices[(i + 1) % self.size]
+                    edge = b2EdgeShape(vertices=[v1, v2])
+                    self.body.CreateEdgeFixture(
+                        shape=edge, density=1, friction=0.0, restitution=1.0
+                    )
+        if self.size == TRIANGLE_SIZE or self.size == SQUARE_SIZE:
+            for i in range(self.size):
+                if i == 0:
+                    holeSize = 4
+                    v1 = Vector2(self.vertices[i])
+                    v2 = Vector2(self.vertices[(i + 1) % self.size])
+                    length = (v2 - v1).length()
+                    dir_vec = (v2 - v1).normalize()
+                    mV1 = v1 + dir_vec * (length / 2 - holeSize)
+                    mV2 = v1 + dir_vec * (length / 2 + holeSize)
+
+                    edge = b2EdgeShape(vertices=[v1, mV1])
+                    self.body.CreateEdgeFixture(
+                        shape=edge, density=1, friction=0.0, restitution=1.0
+                    )
+
+                    edge = b2EdgeShape(vertices=[mV2, v2])
+                    self.body.CreateEdgeFixture(
+                        shape=edge, density=1, friction=0.0, restitution=1.0
+                    )
+                else:
+                    v1 = self.vertices[i]
+                    v2 = self.vertices[(i + 1) % self.size]
+                    edge = b2EdgeShape(vertices=[v1, v2])
+                    self.body.CreateEdgeFixture(
+                        shape=edge, density=1, friction=0.0, restitution=1.0
+                    )
+
+    def draw(self, paused=False):
+        global utils
+        # Only update the hue/rotation if not paused
+        if not paused:
+            self.hue = (self.hue + utils.deltaTime() / 5) % 1
+            self.body.angle += self.rotateDir * utils.deltaTime()
+
+        self.color = utils.hueToRGB(self.hue)
+        self.draw_edges()
+
+    def draw_edges(self):
+        global utils
+        for fixture in self.body.fixtures:
+            v1 = utils.to_Pos(self.body.transform * fixture.shape.vertices[0])
+            v2 = utils.to_Pos(self.body.transform * fixture.shape.vertices[1])
+            pygame.draw.line(utils.screen, self.color, v1, v2, RING_LINE_THICKNESS)
+
+    def spawParticles(self):
+        global utils
+        particles = []
+        center = Vector2(utils.width / 2, utils.height / 2)
+        for i in range(0, 360, 5):
+            x = math.cos(math.radians(i)) * self.radius * 10
+            y = math.sin(math.radians(i)) * self.radius * 10
+            pos = center + Vector2(x, y)
+            exp = Explosion(pos.x, pos.y, self.color)
+            particles.append(exp)
+        return particles
+
+###############################################################################
+# Sounds
+###############################################################################
+class Sounds:
+    def __init__(self):
+        mixer.init()
+        # Example asset references (ensure these files exist in your assets folder)
+        self.destroySound = pygame.mixer.Sound("assets/pickupCoin.wav")
+
+        self.sounds = [
+            pygame.mixer.Sound("assets/(1).wav"),
+            pygame.mixer.Sound("assets/(2).wav"),
+            pygame.mixer.Sound("assets/(3).wav")
+        ]
+        self.i = 0
+
+    def play(self):
+        # stop all sound
+        for sound in self.sounds:
+            sound.stop()
+        # play sound
+        sound = self.sounds[self.i]
+        sound.play()
+        self.i += 1
+        if self.i >= len(self.sounds):
+            self.i = 0
+
+    def playDestroySound(self):
+        self.destroySound.play()
+
+###############################################################################
+# Game
+###############################################################################
+class Game:
+    def __init__(self):
+        global utils
+        global sounds
+
+        self.center = Vector2(utils.width / 2, utils.height / 2)
+        self.ball = Ball(Vector2(utils.width / 2, utils.height / 2),
+                         BALL_RADIUS, BALL_COLOR)
+        self.particles = []
+        self.rings = []
+
+        # Create rings based on configurable variables
+        radius = INITIAL_RING_RADIUS
+        rotateSpeed = INITIAL_ROTATION_SPEED
+        hue = INITIAL_HUE
+
+        for i in range(NUM_RINGS):
+            ring = Ring(self.center, radius, rotateSpeed, RING_SEGMENT_COUNT, hue)
+            radius += RING_DISTANCE           # adjustable gap between rings
+            rotateSpeed *= ROTATION_SPEED_MULTIPLIER
+            hue += 1 / NUM_RINGS
+            self.rings.append(ring)
+
+    def update(self):
+        """
+        Update the physics world and game state.
+        """
+        global utils
+        global sounds
+
+        utils.world.Step(1.0 / 60.0, 6, 2)
+
+        # check collisions
+        if utils.contactListener:
+            for bodyA, bodyB in utils.contactListener.collisions:
+                sounds.play()
+                break
+            utils.contactListener.collisions = []
+
+        # ring destruction logic
+        if len(self.rings) > 0:
+            # if ball is outside the ring radius => destroy ring
+            if self.center.distance_to(self.ball.getPos()) > self.rings[0].radius * 10:
+                self.rings[0].destroyFlag = True
+                utils.world.DestroyBody(self.rings[0].body)
+
+        # spawn ring explosion if destroyed
+        for ring in self.rings:
+            if ring.destroyFlag:
+                self.particles += ring.spawParticles()
+                self.rings.remove(ring)
+                sounds.playDestroySound()
+
+        # update ring explosion particles
+        for exp in self.particles:
+            exp.update()
+            if len(exp.particles) == 0:
+                self.particles.remove(exp)
+
+    def draw(self, paused=False):
+        """
+        Draw the rings, ball, and particle explosions.
+        If paused=True, the rings won't rotate or change color.
+        """
+        global utils
+        for ring in self.rings:
+            ring.draw(paused=paused)
+        self.ball.draw()
+
+        for exp in self.particles:
+            exp.draw()
+
+###############################################################################
+# Main Loop
+###############################################################################
 def main():
-    if RANDOM_SEED is not None:
-        random.seed(RANDOM_SEED)
+    global utils
+    global sounds
 
-    pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("Bouncing Ball Prison")
-    clock = pygame.time.Clock()
+    # Create global utilities and sound objects
+    utils = Utils()
+    sounds = Sounds()
 
-    render_surface = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT))
+    game = Game()
 
-    # Load sounds
-    try:
-        collision_sound = pygame.mixer.Sound(COLLISION_SOUND_PATH)
-        collision_sound.set_volume(SOUND_VOLUME)
-    except Exception as e:
-        print("Warning: Could not load collision sound:", e)
-        collision_sound = None
+    # Pause timer
+    pause_time_remaining = INITIAL_PAUSE_TIME
 
-    try:
-        ring_pop_sound = pygame.mixer.Sound(RING_POP_SOUND_PATH)
-        ring_pop_sound.set_volume(RING_POP_SOUND_VOLUME)
-    except Exception as e:
-        print("Warning: Could not load ring pop sound:", e)
-        ring_pop_sound = None
-
-    font = pygame.font.SysFont(None, TEXT_SIZE)
-
-    # Center point
-    center_x = RENDER_WIDTH // 2
-    center_y = RENDER_HEIGHT // 2
-
-    # Create rings; the first ring starts at min_radius.
-    min_radius = 60
-    rings = []
-    for i in range(NUM_RINGS):
-        r = min_radius + i * (RING_THICKNESS + RING_RADIAL_GAP) + RING_THICKNESS / 2
-        direction = 1 if (i % 2 == 0) else -1
-        color = RING_COLOR1 if (i % 2 == 0) else RING_COLOR2
-        rings.append(Ring(r, direction, i, color))
-
-    # Initialize the ball at the center.
-    init_angle = random.uniform(0, 2 * math.pi)
-    ball_x = center_x
-    ball_y = center_y
-    vx = BALL_SPEED * math.cos(init_angle)
-    vy = BALL_SPEED * math.sin(init_angle)
-    bounce_count = 0
-
-    # Track last collision sound time
-    last_collision_sound_time = 0.0
-
-    all_dissolved = False
-    escape_time = None
-
-    # Initial pause (ball and rings are static)
-    start_time = time.time()
-    paused = True
-
-    running = True
-    while running:
-        dt = clock.tick(FPS) / 1000.0
-
+    while True:
+        # Check events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                running = False
+                pygame.quit()
+                return
+            # Exit on ESC
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    return
 
-        if paused and (time.time() - start_time >= INITIAL_PAUSE_TIME):
-            paused = False
+        # Calculate deltaTime (also rotates gravity)
+        utils.calDeltaTime()
 
-        if not paused and not all_dissolved:
-            # Update rings
-            for ring in rings:
-                ring.update()
+        # Fill background
+        utils.screen.fill(SCREEN_BACKGROUND_COLOR)
 
-            # Move ball
-            ball_x += vx
-            ball_y += vy
+        # If we still have pause time, reduce it but skip game updates
+        if pause_time_remaining > 0:
+            pause_time_remaining -= utils.deltaTime()
+            # Draw everything in a "paused" state
+            game.draw(paused=True)
+        else:
+            # Otherwise update and draw as normal
+            game.update()
+            game.draw(paused=False)
 
-            dx = ball_x - center_x
-            dy = ball_y - center_y
-            dist = math.hypot(dx, dy)
-            ball_angle_deg = math.degrees(math.atan2(dy, dx))
-
-            collision_happened = False
-
-            for ring in rings:
-                if collision_happened or ring.state != "active":
-                    continue
-
-                inner = ring.radius - RING_THICKNESS / 2
-                outer = ring.radius + RING_THICKNESS / 2
-
-                if inner <= dist <= outer:
-                    # If ball's angle is within the gap, consider it a successful pass.
-                    if is_in_gap(ball_angle_deg, ring.rotation_angle, RING_GAP_DEGREES):
-                        ring.start_dissolve()
-                        if ring_pop_sound:
-                            ring_pop_sound.play()
-                        # Increase ball speed
-                        current_speed = math.hypot(vx, vy)
-                        new_speed = current_speed + BALL_SPEED_INCREMENT
-                        angle_current = math.atan2(vy, vx)
-                        vx = new_speed * math.cos(angle_current)
-                        vy = new_speed * math.sin(angle_current)
-                    else:
-                        # Otherwise, reflect the ball.
-                        if dist != 0:
-                            nx = dx / dist
-                            ny = dy / dist
-                            vx, vy = reflect_velocity((vx, vy), (nx, ny), BALL_BOUNCINESS)
-                            vx, vy = perturb_velocity(vx, vy)
-                            bounce_count += 1
-                            if collision_sound and (time.time() - last_collision_sound_time >= COLLISION_SOUND_DELAY):
-                                collision_sound.play()
-                                last_collision_sound_time = time.time()
-                    collision_happened = True  # Only one collision per frame
-
-            if all(r.state == "dissolved" for r in rings):
-                all_dissolved = True
-                escape_time = time.time()
-
-        if all_dissolved and escape_time is not None:
-            if time.time() - escape_time > LINGER_TIME_AFTER_ESCAPE:
-                running = False
-
-        # Rendering
-        render_surface.fill((0, 0, 0))
-        for ring in reversed(rings):
-            if ring.state == "active":
-                outer_radius = int(ring.radius + RING_THICKNESS / 2)
-                inner_radius = int(ring.radius - RING_THICKNESS / 2)
-                pygame.draw.circle(render_surface, ring.color, (center_x, center_y), outer_radius)
-                pygame.draw.circle(render_surface, (0, 0, 0), (center_x, center_y), inner_radius)
-
-                # Draw gap polygon for visual clarity.
-                gap_points = []
-                steps = 24
-                start_rad = math.radians(ring.rotation_angle)
-                end_rad = math.radians(ring.rotation_angle + RING_GAP_DEGREES)
-                for step in range(steps + 1):
-                    t = start_rad + (end_rad - start_rad) * (step / steps)
-                    x = center_x + (outer_radius + 1) * math.cos(t)
-                    y = center_y + (outer_radius + 1) * math.sin(t)
-                    gap_points.append((x, y))
-                for step in range(steps, -1, -1):
-                    t = start_rad + (end_rad - start_rad) * (step / steps)
-                    x = center_x + (inner_radius - 1) * math.cos(t)
-                    y = center_y + (inner_radius - 1) * math.sin(t)
-                    gap_points.append((x, y))
-                pygame.draw.polygon(render_surface, (0, 0, 0), gap_points)
-            elif ring.state == "dissolving":
-                for p in ring.particles:
-                    a = math.radians(p["base_angle"])
-                    rx = center_x + p["radius"] * math.cos(a)
-                    ry = center_y + p["radius"] * math.sin(a)
-                    alpha = max(0, min(255, int(p["alpha"])))
-                    color = (ring.color[0], ring.color[1], ring.color[2], alpha)
-                    surf = pygame.Surface((10, 10), pygame.SRCALPHA)
-                    pygame.draw.circle(surf, color, (5, 5), 3)
-                    render_surface.blit(surf, (rx - 5, ry - 5))
-
-        pygame.draw.circle(render_surface, BALL_COLOR, (int(ball_x), int(ball_y)), BALL_SIZE)
-        text_surf = font.render(f"Bounces: {bounce_count}", True, TEXT_COLOR)
-        text_rect = text_surf.get_rect(midtop=(RENDER_WIDTH // 2, 20))
-        render_surface.blit(text_surf, text_rect)
-        scaled = pygame.transform.smoothscale(render_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        screen.blit(scaled, (0, 0))
         pygame.display.flip()
-
-    pygame.quit()
-    sys.exit()
 
 if __name__ == "__main__":
     main()

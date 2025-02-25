@@ -17,7 +17,7 @@ FPS = 60
 
 # Simulation settings
 INITIAL_PAUSE_TIME = 3.0   # seconds to pause (scene is frozen) before the ball starts moving
-RANDOM_SEED = 1            # set to None for a different random each run
+RANDOM_SEED = 2            # set to None for a different random each run
 NUM_RINGS = 8             # number of rings
 RING_GAP_DEGREES = 35      # gap size in degrees for each ring
 RING_THICKNESS = 20        # thickness of each ring

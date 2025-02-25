@@ -28,20 +28,20 @@ TEAM1_IMAGE_PATH = "Dodger1.png"  # Replace with your PNG file
 TEAM2_IMAGE_PATH = "Giants1.png"  # Replace with your PNG file
 
 # Easy way to change image sizes (width,height)
-TEAM1_IMAGE_SIZE = (65, 65)
-TEAM2_IMAGE_SIZE = (65, 65)
+TEAM1_IMAGE_SIZE = (75, 75)
+TEAM2_IMAGE_SIZE = (75, 75)
 
 # ------------------------------------------------------------------------
 # Initial counts for each team
 # ------------------------------------------------------------------------
-TEAM1_COUNT = 200
-TEAM2_COUNT = 200
+TEAM1_COUNT = 100
+TEAM2_COUNT = 100
 
 # Threshold-based phase switching (unchanged)
-LAST_NUM_PARTICLES = 95
-MIDDLE_LAST_NUM_PARTICLES = 75
+LAST_NUM_PARTICLES = 55
+MIDDLE_LAST_NUM_PARTICLES = 35
 MIDDLE_GROUP = 8
-SECOND_LAST_NUM_PARTICLES = 40
+SECOND_LAST_NUM_PARTICLES = 15
 SECOND_LAST_GROUP = 11
 FINAL_LAST_NUM_PARTICLES = 0
 FINAL_LAST_GROUP = 27
@@ -95,6 +95,20 @@ VICTORY_VOLUME_PERCENT = 80
 START_VOLUME_PERCENT = 40  # Volume for the "start.wav" if you want to adjust it
 
 # ------------------------------------------------------------------------
+# NEW: Sound Design Option Settings
+# ------------------------------------------------------------------------
+# SOUND_OPTION: set to 1 for current design, set to 2 for new collision-song design
+SOUND_OPTION = 2
+
+# For Option 2: collision song based design (only active when SOUND_OPTION == 2)
+COLLISION_SONG_PATH = "TMOTTBG.mp3"  # Change as needed
+SOUND_SNIPPET_DURATION = 0.1   # Duration (in seconds) of each snippet played per collision
+SOUND_FADEOUT_MS = 20          # Fade-out duration in ms to smooth stopping
+COLLISION_SONG_TOTAL_DURATION = 180.0  # Total duration (in seconds) of the collision song (adjust as needed)
+collision_song_pos = 0.0       # Global tracker for current playback position
+COLLISION_SNIPPET_STOP_EVENT = pygame.USEREVENT + 1  # Custom event to stop snippet playback
+
+# ------------------------------------------------------------------------
 # Pygame Initialization and Sound Loading
 # ------------------------------------------------------------------------
 pygame.init()
@@ -129,6 +143,13 @@ if os.path.exists("victory.wav"):
 if os.path.exists("start.wav"):
     start_sound = pygame.mixer.Sound("start.wav")
     start_sound.set_volume(START_VOLUME_PERCENT / 100.0)
+
+# For SOUND_OPTION 2, load the collision song via pygame.mixer.music
+if SOUND_OPTION == 2:
+    if os.path.exists(COLLISION_SONG_PATH):
+        pygame.mixer.music.load(COLLISION_SONG_PATH)
+    else:
+        print("Collision song file not found!")
 
 # High-resolution render surface
 render_surface = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT)).convert()
@@ -238,9 +259,7 @@ class Item:
         return distance_sq < (combined_radius * combined_radius)
 
     def resolve_collision(self, other, current_time):
-        global dominant_color, submissive_color
-        global last_collision_sound_tick
-
+        global dominant_color, submissive_color, last_collision_sound_tick, collision_song_pos
         # Conversion if I'm dominant and the other is submissive
         if self.color == dominant_color and other.color == submissive_color:
             if (current_time - self.last_conversion_time) >= CONVERSION_COOLDOWN:
@@ -248,12 +267,17 @@ class Item:
                 other.last_conversion_time = current_time
                 self.last_conversion_time = current_time
 
-                # Play collision sound if available and cooldown has passed
+                # Sound design changes: play collision snippet based on chosen option
                 current_tick = pygame.time.get_ticks()
-                if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                    collision_sound.play()
-                    last_collision_sound_tick = current_tick
-
+                if SOUND_OPTION == 1:
+                    if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                        collision_sound.play()
+                        last_collision_sound_tick = current_tick
+                elif SOUND_OPTION == 2:
+                    if current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS and not pygame.mixer.music.get_busy():
+                        pygame.mixer.music.play(loops=0, start=collision_song_pos, fade_ms=20)
+                        last_collision_sound_tick = current_tick
+                        pygame.time.set_timer(COLLISION_SNIPPET_STOP_EVENT, int(SOUND_SNIPPET_DURATION * 1000))
         # Conversion if the other is dominant and I'm submissive
         elif other.color == dominant_color and self.color == submissive_color:
             if (current_time - other.last_conversion_time) >= CONVERSION_COOLDOWN:
@@ -261,11 +285,17 @@ class Item:
                 self.last_conversion_time = current_time
                 other.last_conversion_time = current_time
 
-                # Play collision sound if available and cooldown has passed
+                # Sound design changes: play collision snippet based on chosen option
                 current_tick = pygame.time.get_ticks()
-                if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                    collision_sound.play()
-                    last_collision_sound_tick = current_tick
+                if SOUND_OPTION == 1:
+                    if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                        collision_sound.play()
+                        last_collision_sound_tick = current_tick
+                elif SOUND_OPTION == 2:
+                    if current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS and not pygame.mixer.music.get_busy():
+                        pygame.mixer.music.play(loops=0, start=collision_song_pos, fade_ms=20)
+                        last_collision_sound_tick = current_tick
+                        pygame.time.set_timer(COLLISION_SNIPPET_STOP_EVENT, int(SOUND_SNIPPET_DURATION * 1000))
 
 # ------------------------------------------------------------------------
 # Create items for both teams
@@ -376,7 +406,7 @@ def determine_initial_dominance():
         dominant_color, submissive_color = LOGIC_COLOR1, LOGIC_COLOR2
 
 def main():
-    global dominant_color, submissive_color
+    global dominant_color, submissive_color, collision_song_pos  # needed for option 2 updates
 
     determine_initial_dominance()
     items = create_items(TEAM1_COUNT, TEAM2_COUNT, PARTICLE_SPEED, seed=SEED)
@@ -466,7 +496,8 @@ def main():
     # --------------------------
     # 4) Start ambient loop & normal simulation
     # --------------------------
-    if ambient_sound:
+    # Only play ambient sound in SOUND_OPTION 1 (current design)
+    if SOUND_OPTION == 1 and ambient_sound:
         ambient_sound.play(loops=-1)
 
     simulation_start = pygame.time.get_ticks()
@@ -479,6 +510,13 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 running = False
+            # Handle collision snippet stop event for SOUND_OPTION 2
+            elif event.type == COLLISION_SNIPPET_STOP_EVENT:
+                pygame.mixer.music.fadeout(SOUND_FADEOUT_MS)
+                pygame.time.set_timer(COLLISION_SNIPPET_STOP_EVENT, 0)
+                collision_song_pos += SOUND_SNIPPET_DURATION
+                if collision_song_pos >= COLLISION_SONG_TOTAL_DURATION:
+                    collision_song_pos = 0.0
 
         # Time-based dominance logic
         check_last_items(items, elapsed_time)

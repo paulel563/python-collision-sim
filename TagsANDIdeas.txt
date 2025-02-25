@@ -24,3 +24,4 @@ Ideas:
 - Bubbles!
 - Piano Sounds
 - Continuous sound on collision
+- Escape the boundary thing with side (copy what is viral I guess)

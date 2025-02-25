@@ -39,7 +39,7 @@ RING_LINE_THICKNESS = 4
 
 # The ring code uses "size=50" for a circular ring, and has special logic for "size=3 or 4"
 # We'll keep that logic intact but still allow you to change these if needed.
-RING_SEGMENT_COUNT = 72
+RING_SEGMENT_COUNT = 50
 TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
 

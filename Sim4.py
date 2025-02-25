@@ -18,12 +18,12 @@ FPS = 60
 # Simulation settings
 INITIAL_PAUSE_TIME = 3.0   # seconds to pause (scene is frozen) before the ball starts moving
 RANDOM_SEED = 1            # set to None for a different random each run
-NUM_RINGS = 10             # number of rings
+NUM_RINGS = 8             # number of rings
 RING_GAP_DEGREES = 35      # gap size in degrees for each ring
-RING_THICKNESS = 18        # thickness of each ring
+RING_THICKNESS = 20        # thickness of each ring
 
 # Radial gap between rings
-RING_RADIAL_GAP = 30
+RING_RADIAL_GAP = 40
 
 # Ring rotation & dissolve properties
 RING_ROTATION_SPEED = 2     # degrees per frame for ring rotation
@@ -38,22 +38,22 @@ RING_COLOR2 = (0, 200, 255)  # cool blue
 # Ball properties
 BALL_SIZE = 15              # radius of the ball
 BALL_COLOR = (255, 255, 255)  # ball color (white)
-BALL_SPEED = 10.0           # initial ball speed (pixels per frame)
+BALL_SPEED = 8.0           # initial ball speed (pixels per frame)
 BALL_BOUNCINESS = 1.0       # multiplier for velocity on bounce (1.0 = elastic)
 
 # Maximum random angle (in degrees) for bounce perturbation.
-BOUNCE_MAX_ANGLE_DEGREES = 20  
+BOUNCE_MAX_ANGLE_DEGREES = 25  
 
 # Increase in ball speed when passing through a gap.
-BALL_SPEED_INCREMENT = 2.0
+BALL_SPEED_INCREMENT = 4.0
 
 # Sound settings
 COLLISION_SOUND_PATH = "collision7.mp3"  # collision sound file path
-SOUND_VOLUME = 0.5         # volume for collision sound (0.0 - 1.0)
-COLLISION_SOUND_DELAY = 0.05  # delay (in seconds) before collision sound can be played again
+SOUND_VOLUME = 0.4         # volume for collision sound (0.0 - 1.0)
+COLLISION_SOUND_DELAY = 0.055  # delay (in seconds) before collision sound can be played again
 
 RING_POP_SOUND_PATH = "start.wav"  # sound file for ring pop/break
-RING_POP_SOUND_VOLUME = 0.5        # volume for ring pop sound
+RING_POP_SOUND_VOLUME = 0.6        # volume for ring pop sound
 
 # Text settings
 TEXT_COLOR = (255, 255, 255)

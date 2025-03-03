@@ -1,6 +1,7 @@
 import os
 import pygame
 import random
+import math  # Needed for cos/sin
 
 # ------------------------------------------------------------------------
 # Configuration
@@ -12,55 +13,41 @@ RENDER_WIDTH = 1080
 RENDER_HEIGHT = 1920
 FPS = 60
 
-# Collision bounding circle (used for letter collision)
-PARTICLE_RADIUS = 40
-
-# Movement speed
-PARTICLE_SPEED = 0.5
+# TEAM-SPECIFIC SPEEDS (unchanged from previous):
+TEAM1_SPEED = 1
+TEAM2_SPEED = 3
 
 # ------------------------------------------------------------------------
-# New: Team Names, Image Paths, and Image Sizes
-# ------------------------------------------------------------------------
-TEAM1_NAME = "Dodgers"
-TEAM2_NAME = "Giants"
+# NEW: Separate radius for wall bounce vs collision
+# Adjust them to suit your images.
+# For example, you might want a smaller wall radius but a bigger collision radius.
+TEAM1_WALL_RADIUS = 35
+TEAM1_COLLISION_RADIUS = 35  # or however big you'd like for bubble collisions
+TEAM2_WALL_RADIUS = 170
+TEAM2_COLLISION_RADIUS = 200  # or any suitable size for spiky collisions
 
-TEAM1_IMAGE_PATH = "Dodger1.png"  # Replace with your PNG file
-TEAM2_IMAGE_PATH = "Giants1.png"  # Replace with your PNG file
+TEAM1_NAME = "Bubbles"
+TEAM2_NAME = "Spikes"
 
-# Easy way to change image sizes (width,height)
+TEAM1_IMAGE_PATH = "bubble.png"
+TEAM2_IMAGE_PATH = "Spike.png"
+
 TEAM1_IMAGE_SIZE = (75, 75)
-TEAM2_IMAGE_SIZE = (75, 75)
+TEAM2_IMAGE_SIZE = (400, 400)
 
-# ------------------------------------------------------------------------
-# Initial counts for each team
-# ------------------------------------------------------------------------
-TEAM1_COUNT = 100
-TEAM2_COUNT = 100
+TEAM1_COUNT = 170
+TEAM2_COUNT = 1
 
-# Threshold-based phase switching (unchanged)
-LAST_NUM_PARTICLES = 55
-MIDDLE_LAST_NUM_PARTICLES = 35
-MIDDLE_GROUP = 8
-SECOND_LAST_NUM_PARTICLES = 15
-SECOND_LAST_GROUP = 11
-FINAL_LAST_NUM_PARTICLES = 0
-FINAL_LAST_GROUP = 27
+LOGIC_COLOR1 = (255, 69, 0)    # Bubbles
+LOGIC_COLOR2 = (0, 255, 255)   # Spikes
 
-# These are purely for dominance/collision logic (not drawn as colors)
-LOGIC_COLOR1 = (255, 69, 0)   # For Team1 in logic
-LOGIC_COLOR2 = (0, 255, 255)  # For Team2 in logic
-
-# ------------------------------------------------------------------------
-# Colors used for scoreboard text, same as old LETTER1_COLOR / LETTER2_COLOR
-# ------------------------------------------------------------------------
-TEAM1_TEXT_COLOR = (0, 129, 167)   # First color (was LETTER1_COLOR)
-TEAM2_TEXT_COLOR = (255, 90, 0)  # second color (Orange-ish)
+TEAM1_TEXT_COLOR = (0, 129, 167)
+TEAM2_TEXT_COLOR = (255, 90, 0)
 
 BACKGROUND_COLOR = (0, 0, 0)
 
 SEED = 1
-CONVERSION_COOLDOWN = 0.065
-INITIAL_PAUSE_SECONDS = 3  # This is our separate initial pause
+INITIAL_PAUSE_SECONDS = 3
 GRID_SIZE = 50
 
 NEIGHBOR_OFFSETS = [
@@ -69,59 +56,46 @@ NEIGHBOR_OFFSETS = [
     (-1,  1), (0,  1), (1,  1)
 ]
 
-# Toggles
-SHOW_SCOREBOARD = True
+SHOW_SCOREBOARD = False
 SHOW_WINNER_OVERLAY = True
-
-# Fonts
 SCOREBOARD_FONT_SIZE = 24
 
 # ------------------------------------------------------------------------
-# Additional Sound Cooldowns & Timestamps
+# Sound Config
 # ------------------------------------------------------------------------
-SOUND_COOLDOWN_MS = 100      # Minimum time (ms) between collision sounds
-SWAP_SOUND_COOLDOWN_MS = 500 # Minimum time (ms) between swap sounds
+SOUND_COOLDOWN_MS = 100
+SWAP_SOUND_COOLDOWN_MS = 500
 
 last_collision_sound_tick = 0
 last_swap_sound_tick = 0
 
-# ------------------------------------------------------------------------
-# Sound Volume Configuration (Percentage)
-# ------------------------------------------------------------------------
 AMBIENT_VOLUME_PERCENT = 240
 COLLISION_VOLUME_PERCENT = 11
 SWAP_VOLUME_PERCENT = 140
 VICTORY_VOLUME_PERCENT = 80
-START_VOLUME_PERCENT = 40  # Volume for the "start.wav" if you want to adjust it
+START_VOLUME_PERCENT = 40
+
+SOUND_OPTION = 1
+COLLISION_SONG_PATH = "TMOTTBG.mp3"
+SOUND_SNIPPET_DURATION = 0.1
+SOUND_FADEOUT_MS = 20
+COLLISION_SONG_TOTAL_DURATION = 180.0
+collision_song_pos = 0.0
+COLLISION_SNIPPET_STOP_EVENT = pygame.USEREVENT + 1
 
 # ------------------------------------------------------------------------
-# NEW: Sound Design Option Settings
-# ------------------------------------------------------------------------
-# SOUND_OPTION: set to 1 for current design, set to 2 for new collision-song design
-SOUND_OPTION = 2
-
-# For Option 2: collision song based design (only active when SOUND_OPTION == 2)
-COLLISION_SONG_PATH = "TMOTTBG.mp3"  # Change as needed
-SOUND_SNIPPET_DURATION = 0.1   # Duration (in seconds) of each snippet played per collision
-SOUND_FADEOUT_MS = 20          # Fade-out duration in ms to smooth stopping
-COLLISION_SONG_TOTAL_DURATION = 180.0  # Total duration (in seconds) of the collision song (adjust as needed)
-collision_song_pos = 0.0       # Global tracker for current playback position
-COLLISION_SNIPPET_STOP_EVENT = pygame.USEREVENT + 1  # Custom event to stop snippet playback
-
-# ------------------------------------------------------------------------
-# Pygame Initialization and Sound Loading
+# Pygame Init
 # ------------------------------------------------------------------------
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.DOUBLEBUF)
 pygame.display.set_caption("Team Battle Simulation")
-
 pygame.mixer.init()
 
 ambient_sound = None
 collision_sound = None
 swap_sound = None
 victory_sound = None
-start_sound = None  # New start sound
+start_sound = None
 
 if os.path.exists("ambient.wav"):
     ambient_sound = pygame.mixer.Sound("ambient.wav")
@@ -139,34 +113,33 @@ if os.path.exists("victory.wav"):
     victory_sound = pygame.mixer.Sound("victory.wav")
     victory_sound.set_volume(VICTORY_VOLUME_PERCENT / 100.0)
 
-# (New) Load the start sound if present
 if os.path.exists("start.wav"):
     start_sound = pygame.mixer.Sound("start.wav")
     start_sound.set_volume(START_VOLUME_PERCENT / 100.0)
 
-# For SOUND_OPTION 2, load the collision song via pygame.mixer.music
 if SOUND_OPTION == 2:
     if os.path.exists(COLLISION_SONG_PATH):
         pygame.mixer.music.load(COLLISION_SONG_PATH)
     else:
         print("Collision song file not found!")
 
-# High-resolution render surface
 render_surface = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT)).convert()
 
-# Internal logic for dominance
-dominant_color = None  # will be either LOGIC_COLOR1 or LOGIC_COLOR2
-submissive_color = None  # likewise
+dominant_color = None
+submissive_color = None
 
 # ------------------------------------------------------------------------
-# Function to render text with a simple white outline (stroke)
+# Helper Functions
 # ------------------------------------------------------------------------
+def clamp_0_255(val: int) -> int:
+    """Clamp an integer to the [0..255] range."""
+    return max(0, min(255, val))
+
 def render_text_with_outline(font, text, text_color, outline_color=(255, 255, 255), outline_width=2):
     base_surface = font.render(text, True, text_color)
     width, height = base_surface.get_size()
+    outline_surface = pygame.Surface((width + 2*outline_width, height + 2*outline_width), pygame.SRCALPHA)
 
-    outline_surface = pygame.Surface((width + 2 * outline_width, height + 2 * outline_width), pygame.SRCALPHA)
-    
     for dx in range(-outline_width, outline_width + 1):
         for dy in range(-outline_width, outline_width + 1):
             if dx == 0 and dy == 0:
@@ -180,13 +153,12 @@ def render_text_with_outline(font, text, text_color, outline_color=(255, 255, 25
     return outline_surface
 
 # ------------------------------------------------------------------------
-# New: Load two PNG surfaces for each team, scaled to the desired size
+# Load Team Images
 # ------------------------------------------------------------------------
 if os.path.exists(TEAM1_IMAGE_PATH):
     team1_raw = pygame.image.load(TEAM1_IMAGE_PATH).convert_alpha()
     team1_surf = pygame.transform.scale(team1_raw, TEAM1_IMAGE_SIZE)
 else:
-    # Fallback: if the image doesn't exist, just fill a rect
     team1_surf = pygame.Surface(TEAM1_IMAGE_SIZE)
     team1_surf.fill((255, 0, 0))
 
@@ -194,36 +166,133 @@ if os.path.exists(TEAM2_IMAGE_PATH):
     team2_raw = pygame.image.load(TEAM2_IMAGE_PATH).convert_alpha()
     team2_surf = pygame.transform.scale(team2_raw, TEAM2_IMAGE_SIZE)
 else:
-    # Fallback: if the image doesn't exist, just fill a rect
     team2_surf = pygame.Surface(TEAM2_IMAGE_SIZE)
     team2_surf.fill((0, 255, 0))
 
-# Map each logic color to the appropriate team surface
 ITEM_SURF_MAP = {
-    LOGIC_COLOR1: team1_surf,
-    LOGIC_COLOR2: team2_surf
+    LOGIC_COLOR1: team1_surf,  # Bubbles
+    LOGIC_COLOR2: team2_surf   # Spikes
 }
 
 # ------------------------------------------------------------------------
-# Item class (unchanged except for drawing images instead of letters)
+# PopFragment: droplet-like pieces
 # ------------------------------------------------------------------------
-class Item:
+class PopFragment:
     """
-    Modified to include final_x, final_y, and start_y
-    so we can do the falling animation in the countdown.
+    Represents a small particle that shoots out from the bubble center.
+    It fades out over time.
     """
-    __slots__ = ('x', 'y', 'radius', 'color', 'vx', 'vy',
-                 'last_conversion_time', 'final_x', 'final_y', 'start_y')
-
-    def __init__(self, x, y, radius, color, vx, vy, final_x, final_y, start_y):
+    def __init__(self, x, y, angle, speed, start_tick, lifespan=800):
         self.x = x
         self.y = y
-        self.radius = radius
-        self.color = color  # LOGIC_COLOR1 or LOGIC_COLOR2
+        self.start_x = x
+        self.start_y = y
+        self.angle = angle
+        self.speed = speed
+        self.start_tick = start_tick
+        self.lifespan = lifespan
+        self.size = random.randint(6, 12)
+
+    def update_and_draw(self, surface, current_tick):
+        elapsed = current_tick - self.start_tick
+        if elapsed > self.lifespan:
+            return False
+
+        frac = elapsed / self.lifespan
+        if frac < 0:
+            frac = 0
+        if frac > 1:
+            frac = 1
+
+        dist = self.speed * elapsed
+        self.x = self.start_x + dist * math.cos(self.angle)
+        self.y = self.start_y + dist * math.sin(self.angle)
+
+        alpha_raw = 255 * (1.0 - frac)
+        alpha = clamp_0_255(int(alpha_raw))
+
+        fragment_surf = pygame.Surface((self.size * 2, self.size * 2), pygame.SRCALPHA)
+        color = (200, 220, 255, alpha)
+        pygame.draw.circle(fragment_surf, color, (self.size, self.size), self.size)
+        surface.blit(fragment_surf, (self.x - self.size, self.y - self.size))
+
+        return True
+
+# ------------------------------------------------------------------------
+# PopAnimation: bigger ring + fragment droplets
+# ------------------------------------------------------------------------
+class PopAnimation:
+    """
+    Creates a ring plus multiple fragment droplets.
+    """
+    def __init__(self, x, y, start_tick, duration=500):
+        self.x = x
+        self.y = y
+        self.start_tick = start_tick
+        self.duration = duration
+        self.fragments = []
+
+        # spawn fragment droplets
+        num_fragments = random.randint(10, 15)
+        for _ in range(num_fragments):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(0.1, 0.3)
+            frag = PopFragment(self.x, self.y, angle, speed, start_tick)
+            self.fragments.append(frag)
+
+    def update_and_draw(self, surface, current_tick):
+        elapsed = current_tick - self.start_tick
+        done = True
+
+        if elapsed <= self.duration:
+            progress = elapsed / self.duration
+            if progress < 0:
+                progress = 0
+            if progress > 1:
+                progress = 1
+
+            radius = int(20 + 60 * progress)
+            alpha_raw = 255 * (1.0 - progress)
+            alpha = clamp_0_255(int(alpha_raw))
+
+            ring_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(ring_surf, (255, 255, 255, alpha), (radius, radius), radius, width=4)
+            surface.blit(ring_surf, (self.x - radius, self.y - radius))
+            done = False
+
+        new_fragments = []
+        for frag in self.fragments:
+            still_alive = frag.update_and_draw(surface, current_tick)
+            if still_alive:
+                new_fragments.append(frag)
+        self.fragments = new_fragments
+
+        if len(self.fragments) > 0:
+            done = False
+
+        return not done
+
+# ------------------------------------------------------------------------
+# Item Class (with separate wall_radius & collision_radius)
+# ------------------------------------------------------------------------
+class Item:
+    __slots__ = (
+        'x', 'y', 
+        'wall_radius',       # used for bouncing off walls
+        'collision_radius',  # used for hitting other items
+        'color', 'vx', 'vy',
+        'last_conversion_time', 'final_x', 'final_y', 'start_y'
+    )
+
+    def __init__(self, x, y, wall_radius, collision_radius, color, vx, vy, final_x, final_y, start_y):
+        self.x = x
+        self.y = y
+        self.wall_radius = wall_radius
+        self.collision_radius = collision_radius
+        self.color = color
         self.vx = vx
         self.vy = vy
         self.last_conversion_time = float('-inf')
-        # For the falling animation
         self.final_x = final_x
         self.final_y = final_y
         self.start_y = start_y
@@ -231,7 +300,7 @@ class Item:
     def move(self):
         new_x = self.x + self.vx
         new_y = self.y + self.vy
-        r = self.radius
+        r = self.wall_radius  # Bouncing uses wall_radius only
 
         if new_x - r < 0 or new_x + r > RENDER_WIDTH:
             self.vx = -self.vx
@@ -244,97 +313,110 @@ class Item:
             self.y = new_y
 
     def draw(self, surface):
-        # Draw using the PNG surface based on self.color
         image_surf = ITEM_SURF_MAP[self.color]
-        # Compute the top-left for blitting, so that the image is centered
+        # Center the image so that (x, y) is the center
         draw_x = int(self.x - image_surf.get_width() / 2)
         draw_y = int(self.y - image_surf.get_height() / 2)
         surface.blit(image_surf, (draw_x, draw_y))
 
+         # DEBUG: draw a colored circle for the collision radius
+        DEBUG_COLOR = (0, 255, 0)  # green, for example
+        pygame.draw.circle(surface, DEBUG_COLOR, (int(self.x), int(self.y)), self.collision_radius, width=2)
+
     def check_collision(self, other):
+        # Collisions use collision_radius
         dx = self.x - other.x
         dy = self.y - other.y
         distance_sq = dx * dx + dy * dy
-        combined_radius = self.radius + other.radius
+        combined_radius = self.collision_radius + other.collision_radius
         return distance_sq < (combined_radius * combined_radius)
 
-    def resolve_collision(self, other, current_time):
-        global dominant_color, submissive_color, last_collision_sound_tick, collision_song_pos
-        # Conversion if I'm dominant and the other is submissive
-        if self.color == dominant_color and other.color == submissive_color:
-            if (current_time - self.last_conversion_time) >= CONVERSION_COOLDOWN:
-                other.color = dominant_color
-                other.last_conversion_time = current_time
-                self.last_conversion_time = current_time
+    def resolve_collision(self, other, current_time, to_remove, pop_events):
+        global last_collision_sound_tick, collision_song_pos
 
-                # Sound design changes: play collision snippet based on chosen option
-                current_tick = pygame.time.get_ticks()
-                if SOUND_OPTION == 1:
-                    if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                        collision_sound.play()
-                        last_collision_sound_tick = current_tick
-                elif SOUND_OPTION == 2:
-                    if current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS and not pygame.mixer.music.get_busy():
-                        pygame.mixer.music.play(loops=0, start=collision_song_pos, fade_ms=20)
-                        last_collision_sound_tick = current_tick
-                        pygame.time.set_timer(COLLISION_SNIPPET_STOP_EVENT, int(SOUND_SNIPPET_DURATION * 1000))
-        # Conversion if the other is dominant and I'm submissive
-        elif other.color == dominant_color and self.color == submissive_color:
-            if (current_time - other.last_conversion_time) >= CONVERSION_COOLDOWN:
-                self.color = dominant_color
-                self.last_conversion_time = current_time
-                other.last_conversion_time = current_time
+        is_self_bubble = (self.color == LOGIC_COLOR1)
+        is_other_bubble = (other.color == LOGIC_COLOR1)
+        is_self_spike = (self.color == LOGIC_COLOR2)
+        is_other_spike = (other.color == LOGIC_COLOR2)
 
-                # Sound design changes: play collision snippet based on chosen option
-                current_tick = pygame.time.get_ticks()
-                if SOUND_OPTION == 1:
-                    if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                        collision_sound.play()
-                        last_collision_sound_tick = current_tick
-                elif SOUND_OPTION == 2:
-                    if current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS and not pygame.mixer.music.get_busy():
-                        pygame.mixer.music.play(loops=0, start=collision_song_pos, fade_ms=20)
-                        last_collision_sound_tick = current_tick
-                        pygame.time.set_timer(COLLISION_SNIPPET_STOP_EVENT, int(SOUND_SNIPPET_DURATION * 1000))
+        # Bubble collides with Spike => Bubble pops
+        if is_self_bubble and is_other_spike:
+            to_remove.add(self)
+            pop_events.append((self.x, self.y))
+            current_tick = pygame.time.get_ticks()
+            if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                collision_sound.play()
+                last_collision_sound_tick = current_tick
+
+        elif is_other_bubble and is_self_spike:
+            to_remove.add(other)
+            pop_events.append((other.x, other.y))
+            current_tick = pygame.time.get_ticks()
+            if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                collision_sound.play()
+                last_collision_sound_tick = current_tick
 
 # ------------------------------------------------------------------------
-# Create items for both teams
+# Create Items
 # ------------------------------------------------------------------------
-def create_items(count1, count2, speed, seed=None):
-    """
-    Modified to store final_x, final_y, and a random negative start_y
-    so each Item can 'fall' during the countdown.
-    """
+def create_items(count1, count2, seed=None):
     if seed is not None:
         random.seed(seed)
 
     items = []
-    r = PARTICLE_RADIUS
-    max_x = RENDER_WIDTH - r
-    max_y = RENDER_HEIGHT - r
 
-    # Team1 items
+    # Bubbles
     for _ in range(count1):
-        final_x = random.randint(r, max_x)
-        final_y = random.randint(r, max_y)
-        start_y = random.randint(-1000, -r)  # start above the screen
-        vx = speed if random.random() < 0.5 else -speed
-        vy = speed if random.random() < 0.5 else -speed
-        items.append(Item(final_x, start_y, r, LOGIC_COLOR1, vx, vy,
-                          final_x, final_y, start_y))
+        # We'll use TEAM1_WALL_RADIUS for wall bounces, TEAM1_COLLISION_RADIUS for collisions
+        w_r = TEAM1_WALL_RADIUS
+        c_r = TEAM1_COLLISION_RADIUS
+        max_x = RENDER_WIDTH - w_r
+        max_y = RENDER_HEIGHT - w_r
 
-    # Team2 items
+        final_x = random.randint(w_r, max_x)
+        final_y = random.randint(w_r, max_y)
+        start_y = random.randint(-1000, -w_r)
+
+        vx = TEAM1_SPEED if random.random() < 0.5 else -TEAM1_SPEED
+        vy = TEAM1_SPEED if random.random() < 0.5 else -TEAM1_SPEED
+
+        items.append(Item(
+            x=final_x, y=start_y,
+            wall_radius=w_r,
+            collision_radius=c_r,
+            color=LOGIC_COLOR1,
+            vx=vx, vy=vy,
+            final_x=final_x, final_y=final_y, start_y=start_y
+        ))
+
+    # Spikes
     for _ in range(count2):
-        final_x = random.randint(r, max_x)
-        final_y = random.randint(r, max_y)
-        start_y = random.randint(-1000, -r)
-        vx = speed if random.random() < 0.5 else -speed
-        vy = speed if random.random() < 0.5 else -speed
-        items.append(Item(final_x, start_y, r, LOGIC_COLOR2, vx, vy,
-                          final_x, final_y, start_y))
+        w_r = TEAM2_WALL_RADIUS
+        c_r = TEAM2_COLLISION_RADIUS
+        max_x = RENDER_WIDTH - w_r
+        max_y = RENDER_HEIGHT - w_r
+
+        final_x = random.randint(w_r, max_x)
+        final_y = random.randint(w_r, max_y)
+        start_y = random.randint(-1000, -w_r)
+
+        vx = TEAM2_SPEED if random.random() < 0.5 else -TEAM2_SPEED
+        vy = TEAM2_SPEED if random.random() < 0.5 else -TEAM2_SPEED
+
+        items.append(Item(
+            x=final_x, y=start_y,
+            wall_radius=w_r,
+            collision_radius=c_r,
+            color=LOGIC_COLOR2,
+            vx=vx, vy=vy,
+            final_x=final_x, final_y=final_y, start_y=start_y
+        ))
 
     return items
 
+# ------------------------------------------------------------------------
+# Spatial Partition
+# ------------------------------------------------------------------------
 def spatial_partitioning(items):
     grid = {}
     size = GRID_SIZE
@@ -347,7 +429,13 @@ def spatial_partitioning(items):
         grid[cell].append(it)
     return grid
 
-def check_collisions(grid, current_time):
+# ------------------------------------------------------------------------
+# Check Collisions
+# ------------------------------------------------------------------------
+def check_collisions(grid, current_time, items, explosions):
+    to_remove = set()
+    pop_events = []
+
     for (cx, cy), cell_items in grid.items():
         c_len = len(cell_items)
         for i in range(c_len):
@@ -355,8 +443,8 @@ def check_collisions(grid, current_time):
             for j in range(i + 1, c_len):
                 it_j = cell_items[j]
                 if it_i.check_collision(it_j):
-                    it_i.resolve_collision(it_j, current_time)
-        
+                    it_i.resolve_collision(it_j, current_time, to_remove, pop_events)
+
         for ox, oy in NEIGHBOR_OFFSETS:
             neighbor = (cx + ox, cy + oy)
             if neighbor in grid:
@@ -364,37 +452,18 @@ def check_collisions(grid, current_time):
                 for it_i in cell_items:
                     for it_j in neighbor_items:
                         if it_i.check_collision(it_j):
-                            it_i.resolve_collision(it_j, current_time)
+                            it_i.resolve_collision(it_j, current_time, to_remove, pop_events)
 
-def check_last_items(items, elapsed_time):
-    """
-    If the submissive items drop below a threshold, swap dominance.
-    On swap, play 'swap.wav' if present, with a cooldown.
-    """
-    global dominant_color, submissive_color
-    global last_swap_sound_tick
+    # Remove popped items
+    if to_remove:
+        for dead in to_remove:
+            if dead in items:
+                items.remove(dead)
 
-    previous_dominant = dominant_color
-
-    if elapsed_time > FINAL_LAST_GROUP:
-        threshold = FINAL_LAST_NUM_PARTICLES
-    elif elapsed_time > SECOND_LAST_GROUP:
-        threshold = SECOND_LAST_NUM_PARTICLES
-    elif elapsed_time > MIDDLE_GROUP:
-        threshold = MIDDLE_LAST_NUM_PARTICLES
-    else:
-        threshold = LAST_NUM_PARTICLES
-
-    sc = submissive_color
-    submissive_count = sum(1 for it in items if it.color == sc)
-    if submissive_count <= threshold:
-        dominant_color, submissive_color = submissive_color, dominant_color
-
-    if previous_dominant != dominant_color:
-        current_tick = pygame.time.get_ticks()
-        if swap_sound and current_tick - last_swap_sound_tick > SWAP_SOUND_COOLDOWN_MS:
-            swap_sound.play()
-            last_swap_sound_tick = current_tick
+    # For each pop event, spawn a new PopAnimation
+    current_tick = pygame.time.get_ticks()
+    for (px, py) in pop_events:
+        explosions.append(PopAnimation(px, py, current_tick))
 
 def determine_initial_dominance():
     global dominant_color, submissive_color
@@ -405,23 +474,23 @@ def determine_initial_dominance():
     else:
         dominant_color, submissive_color = LOGIC_COLOR1, LOGIC_COLOR2
 
+# ------------------------------------------------------------------------
+# Main
+# ------------------------------------------------------------------------
 def main():
-    global dominant_color, submissive_color, collision_song_pos  # needed for option 2 updates
+    global collision_song_pos
 
     determine_initial_dominance()
-    items = create_items(TEAM1_COUNT, TEAM2_COUNT, PARTICLE_SPEED, seed=SEED)
-    clock = pygame.time.Clock()
 
-    # Fonts for scoreboard & winner overlay
+    items = create_items(TEAM1_COUNT, TEAM2_COUNT, seed=SEED)
+    clock = pygame.time.Clock()
     scoreboard_font = pygame.font.SysFont(None, SCOREBOARD_FONT_SIZE)
     winner_font = pygame.font.SysFont(None, 72)
 
     winner_declared = False
     winner_text = ""
 
-    # --------------------------
     # 1) Initial Pause
-    # --------------------------
     start_time = pygame.time.get_ticks()
     pause_duration = INITIAL_PAUSE_SECONDS * 1000
     while pygame.time.get_ticks() - start_time < pause_duration:
@@ -432,7 +501,6 @@ def main():
 
         render_surface.fill(BACKGROUND_COLOR)
         for it in items:
-            # Just draw them at their starting position (above screen)
             it.draw(render_surface)
 
         scaled_surface = pygame.transform.smoothscale(render_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -441,35 +509,27 @@ def main():
         pygame.display.flip()
         clock.tick(FPS)
 
-    # --------------------------
-    # 2) 3-SECOND COUNTDOWN + FALLING ANIMATION
-    # --------------------------
+    # 2) Countdown + falling
     countdown_font = pygame.font.SysFont(None, 100)
-
     for second in [3, 2, 1]:
-        # Optional beep at the start of each 1-second segment
         if collision_sound:
             collision_sound.play()
-
         segment_start_time = pygame.time.get_ticks()
-        while pygame.time.get_ticks() - segment_start_time < 1000:  # one-second chunk
+        while pygame.time.get_ticks() - segment_start_time < 1000:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     pygame.quit()
                     return
 
-            # Fraction for this 1-second chunk (0 to 1)
             segment_elapsed = pygame.time.get_ticks() - segment_start_time
             fraction = segment_elapsed / 1000.0
-
-            # We figure out the overall fraction of the 3-second fall
-            chunk_index = 3 - second  # 0,1,2 for second=3,2,1
+            chunk_index = 3 - second
             start_frac = chunk_index / 3.0
             end_frac = (chunk_index + 1) / 3.0
             overall_progress = start_frac + (end_frac - start_frac) * fraction
 
-            # Update each item's y position to reflect partial fall
             for it in items:
+                # just move Y from start to final
                 it.y = it.start_y + (it.final_y - it.start_y) * overall_progress
 
             render_surface.fill(BACKGROUND_COLOR)
@@ -479,7 +539,6 @@ def main():
             scaled_surface = pygame.transform.smoothscale(render_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
             screen.blit(scaled_surface, (0, 0))
 
-            # Show the big countdown number
             countdown_surf = countdown_font.render(str(second), True, (255, 255, 255))
             countdown_rect = countdown_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
             screen.blit(countdown_surf, countdown_rect)
@@ -487,30 +546,24 @@ def main():
             pygame.display.flip()
             clock.tick(FPS)
 
-    # --------------------------
-    # 3) After countdown, play a start sound if available
-    # --------------------------
+    # 3) Start sound
     if start_sound:
         start_sound.play()
 
-    # --------------------------
-    # 4) Start ambient loop & normal simulation
-    # --------------------------
-    # Only play ambient sound in SOUND_OPTION 1 (current design)
+    # 4) Ambient
     if SOUND_OPTION == 1 and ambient_sound:
         ambient_sound.play(loops=-1)
 
     simulation_start = pygame.time.get_ticks()
     running = True
+    explosions = []
+
     while running:
         current_ticks = pygame.time.get_ticks()
-        elapsed_time = (current_ticks - simulation_start) / 1000.0
 
-        # Event handling
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 running = False
-            # Handle collision snippet stop event for SOUND_OPTION 2
             elif event.type == COLLISION_SNIPPET_STOP_EVENT:
                 pygame.mixer.music.fadeout(SOUND_FADEOUT_MS)
                 pygame.time.set_timer(COLLISION_SNIPPET_STOP_EVENT, 0)
@@ -518,18 +571,15 @@ def main():
                 if collision_song_pos >= COLLISION_SONG_TOTAL_DURATION:
                     collision_song_pos = 0.0
 
-        # Time-based dominance logic
-        check_last_items(items, elapsed_time)
-
-        # Collisions
         grid = spatial_partitioning(items)
-        check_collisions(grid, elapsed_time)
+        check_collisions(grid, current_ticks, items, explosions)
 
-        # Drawing
         render_surface.fill(BACKGROUND_COLOR)
+
         count_type1 = 0
         count_type2 = 0
 
+        # Move + draw
         for it in items:
             it.move()
             it.draw(render_surface)
@@ -538,29 +588,18 @@ def main():
             else:
                 count_type2 += 1
 
+        # Update + draw pop animations
+        new_explosions = []
+        for ex in explosions:
+            still_active = ex.update_and_draw(render_surface, current_ticks)
+            if still_active:
+                new_explosions.append(ex)
+        explosions = new_explosions
+
         scaled_surface = pygame.transform.smoothscale(render_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
         screen.blit(scaled_surface, (0, 0))
 
-        # --------------------------------------------------
-        # Scoreboard (displays team names & counts)
-        # --------------------------------------------------
-        if SHOW_SCOREBOARD:
-            # Left scoreboard (Team1)
-            text_left = f"{TEAM1_NAME}: {count_type1}"
-            scoreboard_surf_left = render_text_with_outline(
-                scoreboard_font, text_left, TEAM1_TEXT_COLOR, (255, 255, 255), 2
-            )
-            screen.blit(scoreboard_surf_left, (10, 10))
-
-            # Right scoreboard (Team2)
-            text_right = f"{TEAM2_NAME}: {count_type2}"
-            scoreboard_surf_right = render_text_with_outline(
-                scoreboard_font, text_right, TEAM2_TEXT_COLOR, (255, 255, 255), 2
-            )
-            right_width = scoreboard_surf_right.get_width()
-            screen.blit(scoreboard_surf_right, (SCREEN_WIDTH - right_width - 10, 10))
-
-        # Winner check
+        # Winner logic
         if not winner_declared:
             if count_type1 == 0:
                 winner_declared = True
@@ -573,10 +612,23 @@ def main():
                 if victory_sound:
                     victory_sound.play()
 
-        # Winner overlay
+        # Show scoreboard
+        if SHOW_SCOREBOARD:
+            text_left = f"{TEAM1_NAME}: {count_type1}"
+            scoreboard_surf_left = render_text_with_outline(
+                scoreboard_font, text_left, TEAM1_TEXT_COLOR, (255, 255, 255), 2
+            )
+            screen.blit(scoreboard_surf_left, (10, 10))
+
+            text_right = f"{TEAM2_NAME}: {count_type2}"
+            scoreboard_surf_right = render_text_with_outline(
+                scoreboard_font, text_right, TEAM2_TEXT_COLOR, (255, 255, 255), 2
+            )
+            right_width = scoreboard_surf_right.get_width()
+            screen.blit(scoreboard_surf_right, (SCREEN_WIDTH - right_width - 10, 10))
+
         if SHOW_WINNER_OVERLAY and winner_declared and winner_text:
-            winner_surf = render_text_with_outline(winner_font, winner_text, (255, 255, 255),
-                                                   (0, 0, 0), 3)
+            winner_surf = render_text_with_outline(winner_font, winner_text, (255, 255, 255), (0, 0, 0), 3)
             wrect = winner_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
             screen.blit(winner_surf, wrect)
 

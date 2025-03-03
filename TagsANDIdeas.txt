@@ -3,13 +3,13 @@
 #asmr #coding #adhd #bounceball #ball #ballbounce #ballsimulation #colorclash #colorbattle #shorts #learning #animation #colorscollection 
 
 
-Colors collection, 3d art, python, satisfying video, viral video, 3danimation, 3dart, satisfyingvideo,
-bouncing ball, coding, ASMR, ADHD, relaxing, satisfying, colorful, physics, bouncyball, bouncingball, adhd, shorts, 
+Colors collection, 3d art, python, satisfying video, viral video, 3danimation, 3dart, satisfying video,
+bouncing ball, coding, ASMR, ADHD, relaxing, satisfying, colorful, physics, bouncyball, bouncing ball, adhd, shorts, 
 letters, letterbattle, letter battle, names, color clash, color battle, colorclash, gaming, oddly satisfying
 
 
 satisfying, satisfyingvideo, relaxing, relaxingvideo, colorful, colors, letters, colorclash, color clash, color battle, letter, battle, 
-ASMR, ADHD, coding, python, physics, bouncing ball, shorts, names, 3danimation, 3dart, viral video, ball, cool
+ASMR, ADHD, coding, python, physics, bouncing ball, shorts, names, 3danimation, 3dart, viral video, ball, cool, circle, bouncing circle
 
 
 
@@ -25,3 +25,9 @@ Ideas:
 - Piano Sounds
 - Continuous sound on collision
 - Escape the boundary thing with side (copy what is viral I guess)
+- Have the rings be the whole screen
+- ^^ make them infinite too (or so many with big openings that shrinks)
+- Do niche soon
+- so good https://www.youtube.com/shorts/KsDKE9d90aA
+- movie soundtrack dings like Up
+- new idea, circle spinging around with two people/teams as logos. They bounce around and collect other tiny orbs for points. Most wins.

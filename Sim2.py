@@ -28,10 +28,10 @@ SECOND_LAST_GROUP = 18
 FINAL_LAST_NUM_PARTICLES = 0
 FINAL_LAST_GROUP = 26
 
-COLOR2 = (250, 0, 5)     # First color (Red)
-COLOR1 = (5, 250, 0)    # Second color (Blue)
-COLOR2_NAME = "Red"
-COLOR1_NAME = "Green"
+COLOR2 = (255,171,7)   # First color (Orange)
+COLOR1 = (14,141,222)    # Second color (Blue?)
+COLOR2_NAME = "Orange"
+COLOR1_NAME = "Blue"
 
 BACKGROUND_COLOR = (0, 0, 0)
 
@@ -211,7 +211,7 @@ def generate_start_sound(filename, frequency=600, duration=0.5, volume=0.15, sam
 # -------------------------------------------------------
 if os.path.exists("ambient.wav"):
     os.remove("ambient.wav")
-generate_ambient_progression("ambient.wav", AMBIENT_DURATION, 0.5, 44100)
+generate_ambient_progression("ambient.wav", AMBIENT_DURATION, 0.55, 44100)
 
 if os.path.exists("collision.wav"):
     os.remove("collision.wav")

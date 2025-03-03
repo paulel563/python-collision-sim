@@ -9,7 +9,7 @@ from Box2D import b2World, b2ContactListener, b2EdgeShape
 # CONFIGURABLE VARIABLES
 ###############################################################################
 # Random seed
-SEED = 42
+SEED = 2
 
 # Screen settings
 SCREEN_WIDTH = 432       # Display window width
@@ -21,21 +21,21 @@ FRAMERATE = 60
 PPM = 10.0  # Pixels per meter
 
 # Gravity rotates around to "bounce"
-GRAVITY_MAG = 20         # Gravity magnitude
-GRAVITY_ROT_SPEED = 0.005  # How fast gravity rotates
+GRAVITY_MAG = 30         # Gravity magnitude
+GRAVITY_ROT_SPEED = 0.0005  # How fast gravity rotates
 
 # Ball settings
 BALL_RADIUS = 1
 BALL_COLOR = (255, 255, 255)
 
 # Rings settings
-NUM_RINGS = 12
-INITIAL_RING_RADIUS = 5
-RING_DISTANCE = 1.4       # You can change this to increase/decrease ring spacing
-INITIAL_ROTATION_SPEED = 1
-ROTATION_SPEED_MULTIPLIER = 1.04
+NUM_RINGS = 15
+INITIAL_RING_RADIUS = 8
+RING_DISTANCE = 2.5       # You can change this to increase/decrease ring spacing
+INITIAL_ROTATION_SPEED = 1.55
+ROTATION_SPEED_MULTIPLIER = 1.01
 INITIAL_HUE = 0
-RING_LINE_THICKNESS = 4
+RING_LINE_THICKNESS = 8
 
 # For the ring shape logic in the code:
 RING_SEGMENT_COUNT = 50
@@ -43,7 +43,7 @@ TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
 
 # NEW VARIABLE: the max angle (0..360) where edges are drawn. The rest is the gap.
-CIRCLE_GAP_END_ANGLE = 310.0
+CIRCLE_GAP_END_ANGLE = 299.0
 
 # Explosion / Particle settings
 PARTICLE_COUNT = 20
@@ -58,6 +58,20 @@ PARTICLE_LIFE_MAX = 1000
 
 # Initial pause at the start of the game (in seconds)
 INITIAL_PAUSE_TIME = 3.0
+
+# SOUND AND VOLUME SETtINGS
+COLLISION_VOLUME = 0.69
+DESTROY_VOLUME = 0.3
+DESTROY_SOUND_FILE = "assets/Mustard.mp3"
+COLLISION_SOUND_FILES = [
+    "assets/(1).wav",
+    "assets/(2).wav",
+    "assets/(3).wav"
+]
+
+# TEXT RENDER SETTINGS
+TEXT_COLOR = (255, 255, 255)
+TEXT_POSITION = (SCREEN_WIDTH // 2, 80)  # Centered horizontally, 30px from top
 
 # Initialize the random seed
 random.seed(SEED)
@@ -245,7 +259,7 @@ class Ring:
         This draws the ring edges for angles [0..CIRCLE_GAP_END_ANGLE].
         The rest is left open, creating the gap in the ring.
         """
-        if self.size == RING_SEGMENT_COUNT:  # was 50
+        if self.size == RING_SEGMENT_COUNT:
             for i in range(self.size):
                 angle = i * (360 / self.size)
                 # Only draw edges if the angle is within 0..CIRCLE_GAP_END_ANGLE
@@ -319,14 +333,15 @@ class Ring:
 class Sounds:
     def __init__(self):
         mixer.init()
-        # Example asset references (ensure these files exist in your assets folder)
-        self.destroySound = pygame.mixer.Sound("assets/pickupCoin.wav")
+        # Destroy sound
+        self.destroySound = pygame.mixer.Sound(DESTROY_SOUND_FILE)
+        self.destroySound.set_volume(DESTROY_VOLUME)
 
-        self.sounds = [
-            pygame.mixer.Sound("assets/(1).wav"),
-            pygame.mixer.Sound("assets/(2).wav"),
-            pygame.mixer.Sound("assets/(3).wav")
-        ]
+        # Collision sounds
+        self.sounds = [pygame.mixer.Sound(f) for f in COLLISION_SOUND_FILES]
+        for s in self.sounds:
+            s.set_volume(COLLISION_VOLUME)
+
         self.i = 0
 
     def play(self):
@@ -357,6 +372,11 @@ class Game:
         self.particles = []
         self.rings = []
 
+        # Keep track of collisions/bounces
+        self.collision_count = 0
+        # Create a font to display the collision count
+        self.font = pygame.font.Font(None, 36)
+
         # Create rings based on configurable variables
         radius = INITIAL_RING_RADIUS
         rotateSpeed = INITIAL_ROTATION_SPEED
@@ -380,9 +400,11 @@ class Game:
 
         # check collisions
         if utils.contactListener:
-            for bodyA, bodyB in utils.contactListener.collisions:
+            collision_events = len(utils.contactListener.collisions)
+            if collision_events > 0:
+                # Increment our collision counter by however many contacts were detected
+                self.collision_count += collision_events
                 sounds.play()
-                break
             utils.contactListener.collisions = []
 
         # ring destruction logic
@@ -411,12 +433,20 @@ class Game:
         If paused=True, the rings won't rotate or change color.
         """
         global utils
+        # Draw rings
         for ring in self.rings:
             ring.draw(paused=paused)
+        # Draw ball
         self.ball.draw()
-
+        # Draw explosions
         for exp in self.particles:
             exp.draw()
+
+        # Render the collision count in the center-top
+        text_surface = self.font.render(f"Bounces: {self.collision_count}", True, TEXT_COLOR)
+        # We use get_rect(center=TEXT_POSITION) so it’s centered at TEXT_POSITION
+        text_rect = text_surface.get_rect(center=TEXT_POSITION)
+        utils.screen.blit(text_surface, text_rect)
 
 ###############################################################################
 # Main Loop

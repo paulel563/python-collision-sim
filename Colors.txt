@@ -100,6 +100,8 @@ COLOR1 = (255, 99, 71)     # Second color (Tomato)
 COLOR2_NAME = "Turquoise"
 COLOR1_NAME = "Tomato"
 
+LEGIT GOOD ONES:
+
 COLOR2 = (0, 0, 220)     # First color (Blue)
 COLOR1 = (0, 255, 127)     # Second color (Spring Green)
 COLOR2_NAME = "Blue"
@@ -114,6 +116,36 @@ COLOR2 = (0, 10, 220)     # First color (Blue)
 COLOR1 = (0, 245, 50)     # Second color ( (light)Green)
 COLOR2_NAME = "Blue"
 COLOR1_NAME = "Green"
+
+COLOR2 = (114,222,117)   # First color (Green2)
+COLOR1 = (14,141,222)    # Second color (Blue2)
+COLOR2_NAME = "Green"
+COLOR1_NAME = "Blue" 
+
+COLOR2 = (255,171,7)   # First color (Orange)
+COLOR1 = (14,141,222)    # Second color (Blue?)
+COLOR2_NAME = "Orange"
+COLOR1_NAME = "Blue"
+
+COLOR2 = (131,39,29)   # First color (Cherry)
+COLOR1 = (251,228,199)   # Second color (White Beige)
+COLOR2_NAME = "Cherry"
+COLOR1_NAME = "Beige"
+
+COLOR2 = (131,39,29)   # First color (Cherry)
+COLOR1 = (241,169,160)   # Second color (Bubblegum)
+COLOR2_NAME = "Cherry"
+COLOR1_NAME = "Bubblegum"
+
+COLOR2 = (240,53,115)   # First color (Pink)
+COLOR1 = (247,163,74)   # Second color (Orange)
+COLOR2_NAME = "Pink"
+COLOR1_NAME = "Orange"  # THIS COMBO IS ALRIGHT BUT NOT AMAZING
+
+COLOR2 = (240,53,115)   # First color (Pink)
+COLOR1 = (249,221,141)   # Second color (Orange)
+COLOR2_NAME = "Pink"
+COLOR1_NAME = "Yellow"
 
 
 

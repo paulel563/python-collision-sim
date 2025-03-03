@@ -36,12 +36,12 @@ LOGIC_COLOR1 = (255, 69, 0)   # For LETTER1 in logic
 LOGIC_COLOR2 = (0, 255, 255)  # For LETTER2 in logic
 
 # Letters (and scoreboard labels) to fight
-LETTER1 = "O"
-LETTER2 = "S"
+LETTER1 = "T"
+LETTER2 = "B"
 
 # Actual display colors for each letter
-LETTER1_COLOR = (0,129,167)  # First color water
-LETTER2_COLOR = (240,237,164)  # Second color sand
+LETTER1_COLOR = (255,120,7)   # First color (Orange)
+LETTER2_COLOR = (14,141,222)    # Second color (Blue?)
 
 BACKGROUND_COLOR = (0, 0, 0)
 
@@ -75,11 +75,11 @@ last_swap_sound_tick = 0
 # ------------------------------------------------------------------------
 # Sound Volume Configuration (Percentage)
 # ------------------------------------------------------------------------
-AMBIENT_VOLUME_PERCENT = 240
-COLLISION_VOLUME_PERCENT = 11
-SWAP_VOLUME_PERCENT = 140
+AMBIENT_VOLUME_PERCENT = 190
+COLLISION_VOLUME_PERCENT = 8
+SWAP_VOLUME_PERCENT = 160
 VICTORY_VOLUME_PERCENT = 80
-START_VOLUME_PERCENT = 40  # Volume for the "start.wav" if you want to adjust it
+START_VOLUME_PERCENT = 45  # Volume for the "start.wav" if you want to adjust it
 
 # ------------------------------------------------------------------------
 # Pygame Initialization and Sound Loading
@@ -485,14 +485,14 @@ def main():
             text_left = f"{LETTER1}: {count_type1}"
             scoreboard_surf_left = render_text_with_outline(scoreboard_font, text_left, LETTER1_COLOR,
                                                             (255, 255, 255), 2)
-            screen.blit(scoreboard_surf_left, (10, 10))
+            screen.blit(scoreboard_surf_left, (23,23))
 
             # Right scoreboard (LETTER2)
             text_right = f"{LETTER2}: {count_type2}"
             scoreboard_surf_right = render_text_with_outline(scoreboard_font, text_right, LETTER2_COLOR,
                                                              (255, 255, 255), 2)
             right_width = scoreboard_surf_right.get_width()
-            screen.blit(scoreboard_surf_right, (SCREEN_WIDTH - right_width - 10, 10))
+            screen.blit(scoreboard_surf_right, (SCREEN_WIDTH - right_width - 23, 23))
 
         # Winner check
         if not winner_declared:

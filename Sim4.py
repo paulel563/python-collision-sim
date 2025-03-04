@@ -59,7 +59,7 @@ PARTICLE_LIFE_MAX = 1000
 # Initial pause at the start of the game (in seconds)
 INITIAL_PAUSE_TIME = 3.0
 
-# SOUND AND VOLUME SETtINGS
+# SOUND AND VOLUME SETTINGS
 COLLISION_VOLUME = 0.69
 DESTROY_VOLUME = 0.3
 DESTROY_SOUND_FILE = "assets/Mustard.mp3"
@@ -71,7 +71,11 @@ COLLISION_SOUND_FILES = [
 
 # TEXT RENDER SETTINGS
 TEXT_COLOR = (255, 255, 255)
-TEXT_POSITION = (SCREEN_WIDTH // 2, 80)  # Centered horizontally, 30px from top
+TEXT_POSITION = (SCREEN_WIDTH // 2, 80)  # Centered horizontally, 80px from top
+
+# TIMER SETTINGS
+TIMER_DURATION = 30.0  # Default timer length in seconds (can be changed)
+TIMER_POSITION = (SCREEN_WIDTH // 2, 30)  # Timer displayed above bounce count
 
 # Initialize the random seed
 random.seed(SEED)
@@ -374,7 +378,7 @@ class Game:
 
         # Keep track of collisions/bounces
         self.collision_count = 0
-        # Create a font to display the collision count
+        # Create a font to display the collision count and timer
         self.font = pygame.font.Font(None, 36)
 
         # Create rings based on configurable variables
@@ -389,10 +393,20 @@ class Game:
             hue += 1 / NUM_RINGS
             self.rings.append(ring)
 
+        # Game over flag (becomes True when the ball pops)
+        self.game_over = False
+
     def update(self):
         """
         Update the physics world and game state.
         """
+        # If game over, skip normal updates and only update explosions
+        if self.game_over:
+            for exp in self.particles:
+                exp.update()
+            self.particles = [exp for exp in self.particles if len(exp.particles) > 0]
+            return
+
         global utils
         global sounds
 
@@ -424,29 +438,66 @@ class Game:
         # update ring explosion particles
         for exp in self.particles:
             exp.update()
-            if len(exp.particles) == 0:
-                self.particles.remove(exp)
+        self.particles = [exp for exp in self.particles if len(exp.particles) > 0]
 
-    def draw(self, paused=False):
+    def draw(self, paused=False, timer_value=None):
         """
-        Draw the rings, ball, and particle explosions.
+        Draw the rings, ball, particle explosions, timer and collision count.
         If paused=True, the rings won't rotate or change color.
         """
         global utils
         # Draw rings
         for ring in self.rings:
             ring.draw(paused=paused)
-        # Draw ball
-        self.ball.draw()
+        # Draw ball if it hasn't been popped
+        if self.ball is not None:
+            self.ball.draw()
         # Draw explosions
         for exp in self.particles:
             exp.draw()
 
         # Render the collision count in the center-top
         text_surface = self.font.render(f"Bounces: {self.collision_count}", True, TEXT_COLOR)
-        # We use get_rect(center=TEXT_POSITION) so it’s centered at TEXT_POSITION
         text_rect = text_surface.get_rect(center=TEXT_POSITION)
         utils.screen.blit(text_surface, text_rect)
+
+        # Draw timer above bounce count
+        if timer_value is not None:
+            # Prevent negative display
+            display_time = max(timer_value, 0)
+            timer_text = f"{display_time:.2f}"
+            # Determine color:
+            if timer_value <= 10:
+                timer_color = (255, 0, 0)  # red
+            elif timer_value > TIMER_DURATION - (TIMER_DURATION / 3):
+                timer_color = (0, 255, 0)  # green
+            else:
+                timer_color = (255, 215, 0)  # golden yellow
+            timer_surface = self.font.render(timer_text, True, timer_color)
+            timer_rect = timer_surface.get_rect(center=TIMER_POSITION)
+            utils.screen.blit(timer_surface, timer_rect)
+
+        # If game over, display the "Time's up!" message
+        if self.game_over:
+            big_font = pygame.font.Font(None, 72)
+            self.draw_outlined_text("Time's up!", big_font, (0, 0, 0), (255, 255, 255),
+                                     (utils.width // 2, utils.height // 2))
+
+    def draw_outlined_text(self, text, font, text_color, outline_color, center):
+        """
+        Draws text with a white outline.
+        """
+        text_surface = font.render(text, True, text_color)
+        outline_surface = font.render(text, True, outline_color)
+        # Draw outline by blitting the outline surface at several offsets
+        for offset in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
+            pos = (center[0] - text_surface.get_width() // 2 + offset[0],
+                   center[1] - text_surface.get_height() // 2 + offset[1])
+            utils.screen.blit(outline_surface, pos)
+        # Blit main text on top
+        pos = (center[0] - text_surface.get_width() // 2,
+               center[1] - text_surface.get_height() // 2)
+        utils.screen.blit(text_surface, pos)
 
 ###############################################################################
 # Main Loop
@@ -455,7 +506,6 @@ def main():
     global utils
     global sounds
 
-    # Create global utilities and sound objects
     utils = Utils()
     sounds = Sounds()
 
@@ -463,6 +513,8 @@ def main():
 
     # Pause timer
     pause_time_remaining = INITIAL_PAUSE_TIME
+    # Game timer starts after the pause
+    game_timer = TIMER_DURATION
 
     while True:
         # Check events
@@ -478,19 +530,33 @@ def main():
 
         # Calculate deltaTime (also rotates gravity)
         utils.calDeltaTime()
-
-        # Fill background
         utils.screen.fill(SCREEN_BACKGROUND_COLOR)
 
-        # If we still have pause time, reduce it but skip game updates
         if pause_time_remaining > 0:
             pause_time_remaining -= utils.deltaTime()
-            # Draw everything in a "paused" state
-            game.draw(paused=True)
+            # Draw game in a "paused" state, showing full timer
+            game.draw(paused=True, timer_value=TIMER_DURATION)
         else:
-            # Otherwise update and draw as normal
-            game.update()
-            game.draw(paused=False)
+            # Update the timer (only if game is not already over)
+            if not game.game_over:
+                game_timer -= utils.deltaTime()
+                if game_timer <= 0 and not game.game_over:
+                    # Pop the ball: create explosion and remove the ball
+                    if game.ball is not None:
+                        ball_pos = game.ball.getPos()
+                        explosion = Explosion(ball_pos.x, ball_pos.y, BALL_COLOR)
+                        game.particles.append(explosion)
+                        # Destroy the ball's physics body
+                        utils.world.DestroyBody(game.ball.circle_body)
+                        game.ball = None
+                    game.game_over = True
+
+            if game.game_over:
+                # When game over, freeze timer display at 0
+                game.draw(paused=False, timer_value=0)
+            else:
+                game.update()
+                game.draw(paused=False, timer_value=game_timer)
 
         pygame.display.flip()
 

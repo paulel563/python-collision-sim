@@ -37,8 +37,8 @@ TEAM2_COUNT = 1
 LOGIC_COLOR1 = (255, 69, 0)    # Bubbles
 LOGIC_COLOR2 = (0, 255, 255)   # Spikes
 
-TEAM1_TEXT_COLOR = (0, 129, 167)
-TEAM2_TEXT_COLOR = (255, 90, 0)
+TEAM1_TEXT_COLOR = (219, 168, 223)
+TEAM2_TEXT_COLOR = (219, 168, 223)
 
 BACKGROUND_COLOR = (0, 0, 0)
 
@@ -62,7 +62,7 @@ NEIGHBOR_OFFSETS = [
 # Show scoreboard for Team 1 and timer in the corners
 SHOW_SCOREBOARD = True
 SHOW_WINNER_OVERLAY = True
-SCOREBOARD_FONT_SIZE = 24
+SCOREBOARD_FONT_SIZE = 25
 
 # ------------------------------------------------------------------------
 # Sound Config
@@ -73,8 +73,8 @@ SWAP_SOUND_COOLDOWN_MS = 500
 last_collision_sound_tick = 0
 last_swap_sound_tick = 0
 
-AMBIENT_VOLUME_PERCENT = 100
-COLLISION_VOLUME_PERCENT = 11
+AMBIENT_VOLUME_PERCENT = 60
+COLLISION_VOLUME_PERCENT = 20
 SWAP_VOLUME_PERCENT = 140
 VICTORY_VOLUME_PERCENT = 80
 START_VOLUME_PERCENT = 40
@@ -574,7 +574,7 @@ def main():
             # Bubble count (top left)
             bubble_text = f"{TEAM1_NAME}: {count_type1}"
             bubble_surf = render_text_with_outline(scoreboard_font, bubble_text, TEAM1_TEXT_COLOR, (255, 255, 255), 2)
-            screen.blit(bubble_surf, (20, 20))
+            screen.blit(bubble_surf, (25, 25))
             
             # Timer (top right) with color based on remaining time.
             if time_left > (2/3 * SIMULATION_DURATION_SECONDS):
@@ -585,8 +585,8 @@ def main():
                 timer_color = (255, 0, 0)
             timer_text = f"{time_left:05.2f}"
             timer_surf = render_text_with_outline(scoreboard_font, timer_text, timer_color, (255, 255, 255), 2)
-            timer_x = SCREEN_WIDTH - timer_surf.get_width() - 20
-            screen.blit(timer_surf, (timer_x, 20))
+            timer_x = SCREEN_WIDTH - timer_surf.get_width() - 25
+            screen.blit(timer_surf, (timer_x, 25))
 
         # Winner overlay (only show if 1 second has passed since win condition)
         if SHOW_WINNER_OVERLAY and winner_declared and winner_text and winner_declared_time is not None:

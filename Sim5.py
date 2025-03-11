@@ -121,7 +121,7 @@ if sound_options == 1:
         print("collision7.mp3 not found!")
 elif sound_options == 2:
     # Define your list of pop sound files here.
-    pop_sound_files = ["pop1.wav", "pop2.wav", "pop3.wav","pop4.wav", "pop5.wav"]  # Modify as needed
+    pop_sound_files = ["collision7.mp3", "pop2.wav", "pop5.wav"]  # Modify as needed
     for file in pop_sound_files:
         if os.path.exists(file):
             sound = pygame.mixer.Sound(file)
@@ -339,8 +339,7 @@ class Item:
                     last_collision_sound_tick = current_tick
             elif sound_options == 2:
                 if pop_sound_list and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                    pop_sound_list[current_pop_sound_index].play()
-                    current_pop_sound_index = (current_pop_sound_index + 1) % len(pop_sound_list)
+                    random.choice(pop_sound_list).play()
                     last_collision_sound_tick = current_tick
         elif is_other_bubble and is_self_spike:
             to_remove.add(other)

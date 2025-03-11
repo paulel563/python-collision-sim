@@ -3,6 +3,7 @@ import pygame
 import random
 import math  # Needed for cos/sin
 
+
 # ------------------------------------------------------------------------
 # Configuration
 # ------------------------------------------------------------------------
@@ -53,17 +54,17 @@ SMALL_BUBBLE_SETTINGS = {
     "speed": 1,
     "image_path": "bubble.png",
     "image_size": (75, 75),
-    "pop_sound_files": ["pop_small_1.mp3", "pop_small_2.mp3", "pop_small_3.mp3"]
+    "pop_sound_files": ["pop2.wav", "pop4.wav"]
 }
 
 BIG_BUBBLE_SETTINGS = {
     "count": 50,
-    "wall_radius": 70,
-    "collision_radius": 70,
+    "wall_radius": 50,
+    "collision_radius": 50,
     "speed": 0.5,
-    "image_path": "bubble_big.png",  # If not found, will fall back to a plain surface
+    "image_path": "bubble.png",  # If not found, will fall back to a plain surface
     "image_size": (100, 100),
-    "pop_sound_files": ["pop_big_1.mp3", "pop_big_2.mp3", "pop_big_3.mp3"]
+    "pop_sound_files": ["collision7.mp3", "pop5.wav"]
 }
 
 # ------------------------------------------------------------------------
@@ -95,6 +96,11 @@ COLLISION_VOLUME_PERCENT = 20
 SWAP_VOLUME_PERCENT = 140
 VICTORY_VOLUME_PERCENT = 80
 START_VOLUME_PERCENT = 40
+
+pygame.init()
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.DOUBLEBUF)
+pygame.display.set_caption("Team Battle Simulation")
+pygame.mixer.init()
 
 # --- New Sound Options ---
 # sound_options: 1 uses the original single collision sound.

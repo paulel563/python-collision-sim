@@ -15,7 +15,7 @@ FPS = 60
 
 # TEAM-SPECIFIC SPEEDS
 TEAM1_SPEED = 1
-TEAM2_SPEED = 3
+TEAM2_SPEED = 5
 
 TEAM1_WALL_RADIUS = 35
 TEAM1_COLLISION_RADIUS = 35
@@ -31,7 +31,7 @@ TEAM2_IMAGE_PATH = "Spike2.png"
 TEAM1_IMAGE_SIZE = (75, 75)
 TEAM2_IMAGE_SIZE = (400, 400)
 
-TEAM1_COUNT = 170
+TEAM1_COUNT = 200
 TEAM2_COUNT = 1
 
 LOGIC_COLOR1 = (255, 69, 0)    # Bubbles
@@ -42,7 +42,7 @@ TEAM2_TEXT_COLOR = (219, 168, 223)
 
 BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 1
+SEED = 4
 INITIAL_PAUSE_SECONDS = 3
 
 # New variable for simulation duration (timer countdown)
@@ -71,7 +71,6 @@ SOUND_COOLDOWN_MS = 100
 SWAP_SOUND_COOLDOWN_MS = 500
 
 last_collision_sound_tick = 0
-last_swap_sound_tick = 0
 
 AMBIENT_VOLUME_PERCENT = 60
 COLLISION_VOLUME_PERCENT = 20
@@ -79,13 +78,22 @@ SWAP_VOLUME_PERCENT = 140
 VICTORY_VOLUME_PERCENT = 80
 START_VOLUME_PERCENT = 40
 
-SOUND_OPTION = 1
+# --- New Sound Options ---
+# sound_options: 1 uses the original single collision sound.
+# 2 uses cycling pop sounds for each bubble pop.
+sound_options = 2  # Change to 1 for original behavior
+
+# Variables used by the original collision song (if needed)
 COLLISION_SONG_PATH = "TMOTTBG.mp3"
 SOUND_SNIPPET_DURATION = 0.1
 SOUND_FADEOUT_MS = 20
 COLLISION_SONG_TOTAL_DURATION = 180.0
 collision_song_pos = 0.0
 COLLISION_SNIPPET_STOP_EVENT = pygame.USEREVENT + 1
+
+# For sound option 2: list of pop sounds and an index to cycle through them.
+pop_sound_list = []
+current_pop_sound_index = 0
 
 # ------------------------------------------------------------------------
 # Pygame Init
@@ -96,7 +104,7 @@ pygame.display.set_caption("Team Battle Simulation")
 pygame.mixer.init()
 
 ambient_sound = None
-collision_sound = None
+collision_sound = None  # used in sound option 1
 swap_sound = None
 victory_sound = None
 start_sound = None
@@ -105,9 +113,23 @@ if os.path.exists("ambient.wav"):
     ambient_sound = pygame.mixer.Sound("ambient.wav")
     ambient_sound.set_volume(AMBIENT_VOLUME_PERCENT / 100.0)
 
-if os.path.exists("collision7.mp3"):
-    collision_sound = pygame.mixer.Sound("collision7.mp3")
-    collision_sound.set_volume(COLLISION_VOLUME_PERCENT / 100.0)
+if sound_options == 1:
+    if os.path.exists("collision7.mp3"):
+        collision_sound = pygame.mixer.Sound("collision7.mp3")
+        collision_sound.set_volume(COLLISION_VOLUME_PERCENT / 100.0)
+    else:
+        print("collision7.mp3 not found!")
+elif sound_options == 2:
+    # Define your list of pop sound files here.
+    pop_sound_files = ["pop1.wav", "pop2.wav", "pop3.wav","pop4.wav", "pop5.wav"]  # Modify as needed
+    for file in pop_sound_files:
+        if os.path.exists(file):
+            sound = pygame.mixer.Sound(file)
+            sound.set_volume(COLLISION_VOLUME_PERCENT / 100.0)
+            pop_sound_list.append(sound)
+        else:
+            print(f"Pop sound file {file} not found!")
+    current_pop_sound_index = 0
 
 if os.path.exists("swap.wav"):
     swap_sound = pygame.mixer.Sound("swap.wav")
@@ -121,11 +143,7 @@ if os.path.exists("start.wav"):
     start_sound = pygame.mixer.Sound("start.wav")
     start_sound.set_volume(START_VOLUME_PERCENT / 100.0)
 
-if SOUND_OPTION == 2:
-    if os.path.exists(COLLISION_SONG_PATH):
-        pygame.mixer.music.load(COLLISION_SONG_PATH)
-    else:
-        print("Collision song file not found!")
+# (Removed the pygame.mixer.music loading block from the original SOUND_OPTION==2 branch)
 
 render_surface = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT)).convert()
 
@@ -305,7 +323,7 @@ class Item:
         return distance_sq < (combined_radius * combined_radius)
 
     def resolve_collision(self, other, current_time, to_remove, pop_events):
-        global last_collision_sound_tick, collision_song_pos
+        global last_collision_sound_tick, current_pop_sound_index, pop_sound_list
         is_self_bubble = (self.color == LOGIC_COLOR1)
         is_other_bubble = (other.color == LOGIC_COLOR1)
         is_self_spike = (self.color == LOGIC_COLOR2)
@@ -315,16 +333,28 @@ class Item:
             to_remove.add(self)
             pop_events.append((self.x, self.y))
             current_tick = pygame.time.get_ticks()
-            if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                collision_sound.play()
-                last_collision_sound_tick = current_tick
+            if sound_options == 1:
+                if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                    collision_sound.play()
+                    last_collision_sound_tick = current_tick
+            elif sound_options == 2:
+                if pop_sound_list and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                    pop_sound_list[current_pop_sound_index].play()
+                    current_pop_sound_index = (current_pop_sound_index + 1) % len(pop_sound_list)
+                    last_collision_sound_tick = current_tick
         elif is_other_bubble and is_self_spike:
             to_remove.add(other)
             pop_events.append((other.x, other.y))
             current_tick = pygame.time.get_ticks()
-            if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                collision_sound.play()
-                last_collision_sound_tick = current_tick
+            if sound_options == 1:
+                if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                    collision_sound.play()
+                    last_collision_sound_tick = current_tick
+            elif sound_options == 2:
+                if pop_sound_list and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                    pop_sound_list[current_pop_sound_index].play()
+                    current_pop_sound_index = (current_pop_sound_index + 1) % len(pop_sound_list)
+                    last_collision_sound_tick = current_tick
 
 # ------------------------------------------------------------------------
 # Create Items
@@ -443,6 +473,10 @@ def main():
     winner_declared_time = None
     victory_sound_played = False
 
+    # For freezing the timer when bubbles are gone (Spike wins)
+    freeze_timer = False
+    frozen_elapsed_seconds = None
+
     # 1) Initial Pause
     start_time = pygame.time.get_ticks()
     pause_duration = INITIAL_PAUSE_SECONDS * 1000
@@ -494,7 +528,7 @@ def main():
         start_sound.play()
 
     # 4) Ambient sound
-    if SOUND_OPTION == 1 and ambient_sound:
+    if sound_options == 1 and ambient_sound:
         ambient_sound.play(loops=-1)
 
     # Set simulation start time for the timer
@@ -540,8 +574,11 @@ def main():
         scaled_surface = pygame.transform.smoothscale(render_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
         screen.blit(scaled_surface, (0, 0))
 
-        # Timer calculations
-        elapsed_seconds = (current_ticks - simulation_start) / 1000.0
+        # Timer calculations: freeze the timer if bubbles are gone (Spike wins)
+        if freeze_timer:
+            elapsed_seconds = frozen_elapsed_seconds
+        else:
+            elapsed_seconds = (current_ticks - simulation_start) / 1000.0
         time_left = SIMULATION_DURATION_SECONDS - elapsed_seconds
         if time_left < 0:
             time_left = 0
@@ -564,6 +601,9 @@ def main():
                 winner_declared = True
                 winner_text = f"{TEAM2_NAME} WINS!"
                 winner_declared_time = current_ticks
+                # Freeze the timer when bubbles are all gone (spike wins)
+                freeze_timer = True
+                frozen_elapsed_seconds = (current_ticks - simulation_start) / 1000.0
             elif count_type2 == 0:
                 winner_declared = True
                 winner_text = f"{TEAM1_NAME} WINS!"

@@ -9,7 +9,7 @@ from Box2D import b2World, b2ContactListener, b2EdgeShape
 # CONFIGURABLE VARIABLES
 ###############################################################################
 # Random seed
-SEED = 2
+SEED = 55
 
 # Screen settings
 SCREEN_WIDTH = 432       # Display window width
@@ -21,7 +21,7 @@ FRAMERATE = 60
 PPM = 10.0  # Pixels per meter
 
 # Gravity rotates around to "bounce"
-GRAVITY_MAG = 30         # Gravity magnitude
+GRAVITY_MAG = 50         # Gravity magnitude
 GRAVITY_ROT_SPEED = 0.0005  # How fast gravity rotates
 
 # Ball settings
@@ -43,7 +43,7 @@ TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
 
 # NEW VARIABLE: the max angle (0..360) where edges are drawn. The rest is the gap.
-CIRCLE_GAP_END_ANGLE = 299.0
+CIRCLE_GAP_END_ANGLE = 298.0
 
 # Explosion / Particle settings
 PARTICLE_COUNT = 20
@@ -71,10 +71,10 @@ COLLISION_SOUND_FILES = [
 
 # TEXT RENDER SETTINGS
 TEXT_COLOR = (255, 255, 255)
-TEXT_POSITION = (SCREEN_WIDTH // 2, 80)  # Centered horizontally, 80px from top
+TEXT_POSITION = (SCREEN_WIDTH // 2, 70)  # Centered horizontally, 80px from top
 
 # TIMER SETTINGS
-TIMER_DURATION = 30.0  # Default timer length in seconds (can be changed)
+TIMER_DURATION = 35.0  # Default timer length in seconds (can be changed)
 TIMER_POSITION = (SCREEN_WIDTH // 2, 30)  # Timer displayed above bounce count
 
 # Initialize the random seed
@@ -393,15 +393,16 @@ class Game:
             hue += 1 / NUM_RINGS
             self.rings.append(ring)
 
-        # Game over flag (becomes True when the ball pops)
+        # Game over flag (for ball pop) and win flag (all rings broken)
         self.game_over = False
+        self.win = False
 
     def update(self):
         """
         Update the physics world and game state.
         """
-        # If game over, skip normal updates and only update explosions
-        if self.game_over:
+        # If game over or win, skip normal updates and only update explosions
+        if self.game_over or self.win:
             for exp in self.particles:
                 exp.update()
             self.particles = [exp for exp in self.particles if len(exp.particles) > 0]
@@ -412,30 +413,28 @@ class Game:
 
         utils.world.Step(1.0 / 60.0, 6, 2)
 
-        # check collisions
+        # Check collisions
         if utils.contactListener:
             collision_events = len(utils.contactListener.collisions)
             if collision_events > 0:
-                # Increment our collision counter by however many contacts were detected
                 self.collision_count += collision_events
                 sounds.play()
             utils.contactListener.collisions = []
 
-        # ring destruction logic
+        # Ring destruction logic: if ball is outside the ring radius, break the ring
         if len(self.rings) > 0:
-            # if ball is outside the ring radius => destroy ring
             if self.center.distance_to(self.ball.getPos()) > self.rings[0].radius * 10:
                 self.rings[0].destroyFlag = True
                 utils.world.DestroyBody(self.rings[0].body)
 
-        # spawn ring explosion if destroyed
+        # Spawn ring explosion if a ring is destroyed
         for ring in self.rings:
             if ring.destroyFlag:
                 self.particles += ring.spawParticles()
                 self.rings.remove(ring)
                 sounds.playDestroySound()
 
-        # update ring explosion particles
+        # Update ring explosion particles
         for exp in self.particles:
             exp.update()
         self.particles = [exp for exp in self.particles if len(exp.particles) > 0]
@@ -463,10 +462,8 @@ class Game:
 
         # Draw timer above bounce count
         if timer_value is not None:
-            # Prevent negative display
             display_time = max(timer_value, 0)
             timer_text = f"{display_time:.2f}"
-            # Determine color:
             if timer_value <= 10:
                 timer_color = (255, 0, 0)  # red
             elif timer_value > TIMER_DURATION - (TIMER_DURATION / 3):
@@ -477,24 +474,29 @@ class Game:
             timer_rect = timer_surface.get_rect(center=TIMER_POSITION)
             utils.screen.blit(timer_surface, timer_rect)
 
-        # If game over, display the "Time's up!" message
-        if self.game_over:
+        # Display win or game over message
+        if self.win:
             big_font = pygame.font.Font(None, 72)
+            self.draw_outlined_text("W!", big_font, (0, 0, 0), (255, 255, 255),
+                                     (utils.width // 2, utils.height // 2))
+        elif self.game_over:
+            big_font = pygame.font.Font(None, 72)
+            smaller_font = pygame.font.Font(None, 35)
             self.draw_outlined_text("Time's up!", big_font, (0, 0, 0), (255, 255, 255),
                                      (utils.width // 2, utils.height // 2))
+            self.draw_outlined_text("Game Over", smaller_font, (0, 0, 0), (255, 255, 255),
+                                     (utils.width // 2, utils.height // 1.75))
 
     def draw_outlined_text(self, text, font, text_color, outline_color, center):
         """
-        Draws text with a white outline.
+        Draws text with an outline.
         """
         text_surface = font.render(text, True, text_color)
         outline_surface = font.render(text, True, outline_color)
-        # Draw outline by blitting the outline surface at several offsets
         for offset in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
             pos = (center[0] - text_surface.get_width() // 2 + offset[0],
                    center[1] - text_surface.get_height() // 2 + offset[1])
             utils.screen.blit(outline_surface, pos)
-        # Blit main text on top
         pos = (center[0] - text_surface.get_width() // 2,
                center[1] - text_surface.get_height() // 2)
         utils.screen.blit(text_surface, pos)
@@ -508,7 +510,6 @@ def main():
 
     utils = Utils()
     sounds = Sounds()
-
     game = Game()
 
     # Pause timer
@@ -517,43 +518,43 @@ def main():
     game_timer = TIMER_DURATION
 
     while True:
-        # Check events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
-            # Exit on ESC
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     return
 
-        # Calculate deltaTime (also rotates gravity)
         utils.calDeltaTime()
         utils.screen.fill(SCREEN_BACKGROUND_COLOR)
 
         if pause_time_remaining > 0:
             pause_time_remaining -= utils.deltaTime()
-            # Draw game in a "paused" state, showing full timer
             game.draw(paused=True, timer_value=TIMER_DURATION)
         else:
-            # Update the timer (only if game is not already over)
-            if not game.game_over:
-                game_timer -= utils.deltaTime()
-                if game_timer <= 0 and not game.game_over:
-                    # Pop the ball: create explosion and remove the ball
-                    if game.ball is not None:
-                        ball_pos = game.ball.getPos()
-                        explosion = Explosion(ball_pos.x, ball_pos.y, BALL_COLOR)
-                        game.particles.append(explosion)
-                        # Destroy the ball's physics body
-                        utils.world.DestroyBody(game.ball.circle_body)
-                        game.ball = None
-                    game.game_over = True
+            # If not already game over or win, check if all rings are broken
+            if not game.game_over and not game.win:
+                if len(game.rings) == 0:
+                    # Win condition: freeze timer and set win flag
+                    game.win = True
+                else:
+                    game_timer -= utils.deltaTime()
+                    if game_timer <= 0 and not game.game_over:
+                        # Timer ran out: pop the ball with explosion and sound
+                        if game.ball is not None:
+                            ball_pos = game.ball.getPos()
+                            explosion = Explosion(ball_pos.x, ball_pos.y, BALL_COLOR)
+                            game.particles.append(explosion)
+                            utils.world.DestroyBody(game.ball.circle_body)
+                            game.ball = None
+                            sounds.playDestroySound()
+                        game.game_over = True
 
-            if game.game_over:
-                # When game over, freeze timer display at 0
-                game.draw(paused=False, timer_value=0)
+            if game.game_over or game.win:
+                # Freeze timer display
+                game.draw(paused=False, timer_value=game_timer)
             else:
                 game.update()
                 game.draw(paused=False, timer_value=game_timer)

@@ -13,28 +13,21 @@ RENDER_WIDTH = 1080
 RENDER_HEIGHT = 1920
 FPS = 60
 
-# TEAM-SPECIFIC SPEEDS
-TEAM1_SPEED = 1
+# TEAM-SPECIFIC SPEEDS for spikes remain the same
 TEAM2_SPEED = 5
 
-TEAM1_WALL_RADIUS = 35
-TEAM1_COLLISION_RADIUS = 35
 TEAM2_WALL_RADIUS = 170
 TEAM2_COLLISION_RADIUS = 200
 
-TEAM1_NAME = "Bubbles"
 TEAM2_NAME = "Spike"
 
-TEAM1_IMAGE_PATH = "bubble.png"
 TEAM2_IMAGE_PATH = "Spike2.png"
-
-TEAM1_IMAGE_SIZE = (75, 75)
 TEAM2_IMAGE_SIZE = (400, 400)
 
-TEAM1_COUNT = 200
-TEAM2_COUNT = 1
+TEAM2_COUNT = 1  # Number of spikes
 
-LOGIC_COLOR1 = (255, 69, 0)    # Bubbles
+# Logic colors (bubbles and spikes share their own colors)
+LOGIC_COLOR1 = (255, 69, 0)    # Bubbles (both groups share this)
 LOGIC_COLOR2 = (0, 255, 255)   # Spikes
 
 TEAM1_TEXT_COLOR = (219, 168, 223)
@@ -49,6 +42,31 @@ INITIAL_PAUSE_SECONDS = 3
 SIMULATION_DURATION_SECONDS = 30
 
 # ------------------------------------------------------------------------
+# Bubble Group Settings
+# ------------------------------------------------------------------------
+# Both groups share the same logic color (LOGIC_COLOR1) so they contribute to the same counter.
+# Each group now defines its own count, wall/collision radius, speed, image, and pop sound list.
+SMALL_BUBBLE_SETTINGS = {
+    "count": 150,
+    "wall_radius": 35,
+    "collision_radius": 35,
+    "speed": 1,
+    "image_path": "bubble.png",
+    "image_size": (75, 75),
+    "pop_sound_files": ["pop_small_1.mp3", "pop_small_2.mp3", "pop_small_3.mp3"]
+}
+
+BIG_BUBBLE_SETTINGS = {
+    "count": 50,
+    "wall_radius": 70,
+    "collision_radius": 70,
+    "speed": 0.5,
+    "image_path": "bubble_big.png",  # If not found, will fall back to a plain surface
+    "image_size": (100, 100),
+    "pop_sound_files": ["pop_big_1.mp3", "pop_big_2.mp3", "pop_big_3.mp3"]
+}
+
+# ------------------------------------------------------------------------
 # KEY CHANGE FOR COLLISION: Larger grid size
 # ------------------------------------------------------------------------
 GRID_SIZE = 400
@@ -59,7 +77,7 @@ NEIGHBOR_OFFSETS = [
     (-1,  1), (0,  1), (1,  1)
 ]
 
-# Show scoreboard for Team 1 and timer in the corners
+# Show scoreboard for bubble count and timer in the corners
 SHOW_SCOREBOARD = True
 SHOW_WINNER_OVERLAY = True
 SCOREBOARD_FONT_SIZE = 25
@@ -80,7 +98,7 @@ START_VOLUME_PERCENT = 40
 
 # --- New Sound Options ---
 # sound_options: 1 uses the original single collision sound.
-# 2 uses cycling pop sounds for each bubble pop.
+# 2 uses pop sounds (now per bubble group) for each bubble pop.
 sound_options = 2  # Change to 1 for original behavior
 
 # Variables used by the original collision song (if needed)
@@ -91,64 +109,88 @@ COLLISION_SONG_TOTAL_DURATION = 180.0
 collision_song_pos = 0.0
 COLLISION_SNIPPET_STOP_EVENT = pygame.USEREVENT + 1
 
-# For sound option 2: list of pop sounds and an index to cycle through them.
-pop_sound_list = []
-current_pop_sound_index = 0
+# Load countdown sound (always uses collision7.mp3)
+if os.path.exists("collision7.mp3"):
+    countdown_sound = pygame.mixer.Sound("collision7.mp3")
+    countdown_sound.set_volume(COLLISION_VOLUME_PERCENT / 100.0)
+else:
+    countdown_sound = None
 
-# ------------------------------------------------------------------------
-# Pygame Init
-# ------------------------------------------------------------------------
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.DOUBLEBUF)
-pygame.display.set_caption("Team Battle Simulation")
-pygame.mixer.init()
-
-ambient_sound = None
-collision_sound = None  # used in sound option 1
-swap_sound = None
-victory_sound = None
-start_sound = None
-
-if os.path.exists("ambient.wav"):
-    ambient_sound = pygame.mixer.Sound("ambient.wav")
-    ambient_sound.set_volume(AMBIENT_VOLUME_PERCENT / 100.0)
-
+# For sound option 1 (single collision sound)
+collision_sound = None
 if sound_options == 1:
     if os.path.exists("collision7.mp3"):
         collision_sound = pygame.mixer.Sound("collision7.mp3")
         collision_sound.set_volume(COLLISION_VOLUME_PERCENT / 100.0)
     else:
         print("collision7.mp3 not found!")
-elif sound_options == 2:
-    # Define your list of pop sound files here.
-    pop_sound_files = ["collision7.mp3", "pop2.wav", "pop5.wav"]  # Modify as needed
-    for file in pop_sound_files:
+
+# For sound option 2: load pop sound lists for each bubble group.
+small_bubble_pop_sound_list = []
+big_bubble_pop_sound_list = []
+if sound_options == 2:
+    for file in SMALL_BUBBLE_SETTINGS["pop_sound_files"]:
         if os.path.exists(file):
             sound = pygame.mixer.Sound(file)
             sound.set_volume(COLLISION_VOLUME_PERCENT / 100.0)
-            pop_sound_list.append(sound)
+            small_bubble_pop_sound_list.append(sound)
         else:
-            print(f"Pop sound file {file} not found!")
-    current_pop_sound_index = 0
+            print(f"Small bubble pop sound file {file} not found!")
+    for file in BIG_BUBBLE_SETTINGS["pop_sound_files"]:
+        if os.path.exists(file):
+            sound = pygame.mixer.Sound(file)
+            sound.set_volume(COLLISION_VOLUME_PERCENT / 100.0)
+            big_bubble_pop_sound_list.append(sound)
+        else:
+            print(f"Big bubble pop sound file {file} not found!")
 
 if os.path.exists("swap.wav"):
     swap_sound = pygame.mixer.Sound("swap.wav")
     swap_sound.set_volume(SWAP_VOLUME_PERCENT / 100.0)
+else:
+    swap_sound = None
 
 if os.path.exists("victory.wav"):
     victory_sound = pygame.mixer.Sound("victory.wav")
     victory_sound.set_volume(VICTORY_VOLUME_PERCENT / 100.0)
+else:
+    victory_sound = None
 
 if os.path.exists("start.wav"):
     start_sound = pygame.mixer.Sound("start.wav")
     start_sound.set_volume(START_VOLUME_PERCENT / 100.0)
+else:
+    start_sound = None
 
 # (Removed the pygame.mixer.music loading block from the original SOUND_OPTION==2 branch)
 
 render_surface = pygame.Surface((RENDER_WIDTH, RENDER_HEIGHT)).convert()
 
-dominant_color = None
-submissive_color = None
+# ------------------------------------------------------------------------
+# Load Team Images
+# ------------------------------------------------------------------------
+# For spikes (Team2), we load as before.
+if os.path.exists(TEAM2_IMAGE_PATH):
+    team2_raw = pygame.image.load(TEAM2_IMAGE_PATH).convert_alpha()
+    team2_surf = pygame.transform.scale(team2_raw, TEAM2_IMAGE_SIZE)
+else:
+    team2_surf = pygame.Surface(TEAM2_IMAGE_SIZE)
+    team2_surf.fill((0, 255, 0))
+
+# For bubbles, we load two images (one for small and one for big)
+if os.path.exists(SMALL_BUBBLE_SETTINGS["image_path"]):
+    small_bubble_raw = pygame.image.load(SMALL_BUBBLE_SETTINGS["image_path"]).convert_alpha()
+    small_bubble_surf = pygame.transform.scale(small_bubble_raw, SMALL_BUBBLE_SETTINGS["image_size"])
+else:
+    small_bubble_surf = pygame.Surface(SMALL_BUBBLE_SETTINGS["image_size"])
+    small_bubble_surf.fill((255, 0, 0))
+
+if os.path.exists(BIG_BUBBLE_SETTINGS["image_path"]):
+    big_bubble_raw = pygame.image.load(BIG_BUBBLE_SETTINGS["image_path"]).convert_alpha()
+    big_bubble_surf = pygame.transform.scale(big_bubble_raw, BIG_BUBBLE_SETTINGS["image_size"])
+else:
+    big_bubble_surf = pygame.Surface(BIG_BUBBLE_SETTINGS["image_size"])
+    big_bubble_surf.fill((255, 0, 0))
 
 # ------------------------------------------------------------------------
 # Helper Functions
@@ -173,26 +215,204 @@ def render_text_with_outline(font, text, text_color, outline_color=(255, 255, 25
     return outline_surface
 
 # ------------------------------------------------------------------------
-# Load Team Images
+# Item Class (with separate wall_radius & collision_radius)
+# Now includes an image_surf and a pop_sound_list attribute.
 # ------------------------------------------------------------------------
-if os.path.exists(TEAM1_IMAGE_PATH):
-    team1_raw = pygame.image.load(TEAM1_IMAGE_PATH).convert_alpha()
-    team1_surf = pygame.transform.scale(team1_raw, TEAM1_IMAGE_SIZE)
-else:
-    team1_surf = pygame.Surface(TEAM1_IMAGE_SIZE)
-    team1_surf.fill((255, 0, 0))
+class Item:
+    __slots__ = (
+        'x', 'y',
+        'wall_radius',       # used for bouncing off walls
+        'collision_radius',  # used for hitting other items
+        'color', 'vx', 'vy',
+        'last_conversion_time', 'final_x', 'final_y', 'start_y',
+        'image_surf', 'pop_sound_list'
+    )
 
-if os.path.exists(TEAM2_IMAGE_PATH):
-    team2_raw = pygame.image.load(TEAM2_IMAGE_PATH).convert_alpha()
-    team2_surf = pygame.transform.scale(team2_raw, TEAM2_IMAGE_SIZE)
-else:
-    team2_surf = pygame.Surface(TEAM2_IMAGE_SIZE)
-    team2_surf.fill((0, 255, 0))
+    def __init__(self, x, y, wall_radius, collision_radius, color, vx, vy, final_x, final_y, start_y, image_surf, pop_sound_list=None):
+        self.x = x
+        self.y = y
+        self.wall_radius = wall_radius
+        self.collision_radius = collision_radius
+        self.color = color
+        self.vx = vx
+        self.vy = vy
+        self.last_conversion_time = float('-inf')
+        self.final_x = final_x
+        self.final_y = final_y
+        self.start_y = start_y
+        self.image_surf = image_surf
+        self.pop_sound_list = pop_sound_list
 
-ITEM_SURF_MAP = {
-    LOGIC_COLOR1: team1_surf,  # Bubbles
-    LOGIC_COLOR2: team2_surf   # Spikes
-}
+    def move(self):
+        new_x = self.x + self.vx
+        new_y = self.y + self.vy
+        r = self.wall_radius  # Bouncing uses wall_radius only
+        if new_x - r < 0 or new_x + r > RENDER_WIDTH:
+            self.vx = -self.vx
+        else:
+            self.x = new_x
+        if new_y - r < 0 or new_y + r > RENDER_HEIGHT:
+            self.vy = -self.vy
+        else:
+            self.y = new_y
+
+    def draw(self, surface):
+        draw_x = int(self.x - self.image_surf.get_width() / 2)
+        draw_y = int(self.y - self.image_surf.get_height() / 2)
+        surface.blit(self.image_surf, (draw_x, draw_y))
+        # Uncomment below to draw a debug collision circle:
+        # pygame.draw.circle(surface, (0, 255, 0), (int(self.x), int(self.y)), self.collision_radius, width=2)
+
+    def check_collision(self, other):
+        dx = self.x - other.x
+        dy = self.y - other.y
+        distance_sq = dx * dx + dy * dy
+        combined_radius = self.collision_radius + other.collision_radius
+        return distance_sq < (combined_radius * combined_radius)
+
+    def resolve_collision(self, other, current_time, to_remove, pop_events):
+        global last_collision_sound_tick
+        is_self_bubble = (self.color == LOGIC_COLOR1)
+        is_other_bubble = (other.color == LOGIC_COLOR1)
+        is_self_spike = (self.color == LOGIC_COLOR2)
+        is_other_spike = (other.color == LOGIC_COLOR2)
+        # Bubble collides with Spike => Bubble pops
+        if is_self_bubble and is_other_spike:
+            to_remove.add(self)
+            pop_events.append((self.x, self.y))
+            current_tick = pygame.time.get_ticks()
+            if sound_options == 1:
+                if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                    collision_sound.play()
+                    last_collision_sound_tick = current_tick
+            elif sound_options == 2:
+                if self.pop_sound_list and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                    random.choice(self.pop_sound_list).play()
+                    last_collision_sound_tick = current_tick
+        elif is_other_bubble and is_self_spike:
+            to_remove.add(other)
+            pop_events.append((other.x, other.y))
+            current_tick = pygame.time.get_ticks()
+            if sound_options == 1:
+                if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                    collision_sound.play()
+                    last_collision_sound_tick = current_tick
+            elif sound_options == 2:
+                if other.pop_sound_list and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
+                    random.choice(other.pop_sound_list).play()
+                    last_collision_sound_tick = current_tick
+
+# ------------------------------------------------------------------------
+# Create Items
+# ------------------------------------------------------------------------
+def create_items(seed=None):
+    if seed is not None:
+        random.seed(seed)
+    items = []
+    # Create bubbles from both groups
+    # Both groups use the same logic color (LOGIC_COLOR1)
+    for group, image_surf, group_pop_list in [
+        (SMALL_BUBBLE_SETTINGS, small_bubble_surf, small_bubble_pop_sound_list),
+        (BIG_BUBBLE_SETTINGS, big_bubble_surf, big_bubble_pop_sound_list)
+    ]:
+        for _ in range(group["count"]):
+            r = group["wall_radius"]
+            c_r = group["collision_radius"]
+            max_x = RENDER_WIDTH - r
+            max_y = RENDER_HEIGHT - r
+            final_x = random.randint(r, max_x)
+            final_y = random.randint(r, max_y)
+            start_y = random.randint(-1000, -r)
+            speed = group["speed"]
+            vx = speed if random.random() < 0.5 else -speed
+            vy = speed if random.random() < 0.5 else -speed
+            items.append(Item(
+                x=final_x, y=start_y,
+                wall_radius=r,
+                collision_radius=c_r,
+                color=LOGIC_COLOR1,
+                vx=vx, vy=vy,
+                final_x=final_x, final_y=final_y, start_y=start_y,
+                image_surf=image_surf,
+                pop_sound_list=group_pop_list if sound_options == 2 else None
+            ))
+    # Create spikes (Team2) as before
+    for _ in range(TEAM2_COUNT):
+        r = TEAM2_WALL_RADIUS
+        c_r = TEAM2_COLLISION_RADIUS
+        max_x = RENDER_WIDTH - r
+        max_y = RENDER_HEIGHT - r
+        final_x = random.randint(r, max_x)
+        final_y = random.randint(r, max_y)
+        start_y = random.randint(-1000, -r)
+        vx = TEAM2_SPEED if random.random() < 0.5 else -TEAM2_SPEED
+        vy = TEAM2_SPEED if random.random() < 0.5 else -TEAM2_SPEED
+        items.append(Item(
+            x=final_x, y=start_y,
+            wall_radius=r,
+            collision_radius=c_r,
+            color=LOGIC_COLOR2,
+            vx=vx, vy=vy,
+            final_x=final_x, final_y=final_y, start_y=start_y,
+            image_surf=team2_surf,
+            pop_sound_list=None
+        ))
+    return items
+
+# ------------------------------------------------------------------------
+# Spatial Partition
+# ------------------------------------------------------------------------
+def spatial_partitioning(items):
+    grid = {}
+    size = GRID_SIZE
+    for it in items:
+        grid_x = int(it.x // size)
+        grid_y = int(it.y // size)
+        cell = (grid_x, grid_y)
+        if cell not in grid:
+            grid[cell] = []
+        grid[cell].append(it)
+    return grid
+
+# ------------------------------------------------------------------------
+# Check Collisions
+# ------------------------------------------------------------------------
+def check_collisions(grid, current_time, items, explosions):
+    to_remove = set()
+    pop_events = []
+    for (cx, cy), cell_items in grid.items():
+        c_len = len(cell_items)
+        for i in range(c_len):
+            it_i = cell_items[i]
+            for j in range(i + 1, c_len):
+                it_j = cell_items[j]
+                if it_i.check_collision(it_j):
+                    it_i.resolve_collision(it_j, current_time, to_remove, pop_events)
+        for ox, oy in NEIGHBOR_OFFSETS:
+            neighbor = (cx + ox, cy + oy)
+            if neighbor in grid:
+                neighbor_items = grid[neighbor]
+                for it_i in cell_items:
+                    for it_j in neighbor_items:
+                        if it_i.check_collision(it_j):
+                            it_i.resolve_collision(it_j, current_time, to_remove, pop_events)
+    if to_remove:
+        for dead in to_remove:
+            if dead in items:
+                items.remove(dead)
+    current_tick = pygame.time.get_ticks()
+    for (px, py) in pop_events:
+        explosions.append(PopAnimation(px, py, current_tick))
+
+def determine_initial_dominance():
+    # With two bubble groups, total bubble count is the sum from both groups.
+    # Dominance is determined only by comparing bubbles vs spikes.
+    global dominant_color, submissive_color
+    # For simplicity, if there is at least one bubble, bubbles are dominant.
+    if TEAM2_COUNT > 0:
+        dominant_color, submissive_color = LOGIC_COLOR1, LOGIC_COLOR2
+    else:
+        dominant_color, submissive_color = LOGIC_COLOR2, LOGIC_COLOR1
 
 # ------------------------------------------------------------------------
 # PopFragment: droplet-like pieces
@@ -270,199 +490,11 @@ class PopAnimation:
         return not done
 
 # ------------------------------------------------------------------------
-# Item Class (with separate wall_radius & collision_radius)
-# ------------------------------------------------------------------------
-class Item:
-    __slots__ = (
-        'x', 'y',
-        'wall_radius',       # used for bouncing off walls
-        'collision_radius',  # used for hitting other items
-        'color', 'vx', 'vy',
-        'last_conversion_time', 'final_x', 'final_y', 'start_y'
-    )
-
-    def __init__(self, x, y, wall_radius, collision_radius, color, vx, vy, final_x, final_y, start_y):
-        self.x = x
-        self.y = y
-        self.wall_radius = wall_radius
-        self.collision_radius = collision_radius
-        self.color = color
-        self.vx = vx
-        self.vy = vy
-        self.last_conversion_time = float('-inf')
-        self.final_x = final_x
-        self.final_y = final_y
-        self.start_y = start_y
-
-    def move(self):
-        new_x = self.x + self.vx
-        new_y = self.y + self.vy
-        r = self.wall_radius  # Bouncing uses wall_radius only
-        if new_x - r < 0 or new_x + r > RENDER_WIDTH:
-            self.vx = -self.vx
-        else:
-            self.x = new_x
-        if new_y - r < 0 or new_y + r > RENDER_HEIGHT:
-            self.vy = -self.vy
-        else:
-            self.y = new_y
-
-    def draw(self, surface):
-        image_surf = ITEM_SURF_MAP[self.color]
-        draw_x = int(self.x - image_surf.get_width() / 2)
-        draw_y = int(self.y - image_surf.get_height() / 2)
-        surface.blit(image_surf, (draw_x, draw_y))
-        # Uncomment below to draw a debug collision circle:
-        # pygame.draw.circle(surface, (0, 255, 0), (int(self.x), int(self.y)), self.collision_radius, width=2)
-
-    def check_collision(self, other):
-        dx = self.x - other.x
-        dy = self.y - other.y
-        distance_sq = dx * dx + dy * dy
-        combined_radius = self.collision_radius + other.collision_radius
-        return distance_sq < (combined_radius * combined_radius)
-
-    def resolve_collision(self, other, current_time, to_remove, pop_events):
-        global last_collision_sound_tick, current_pop_sound_index, pop_sound_list
-        is_self_bubble = (self.color == LOGIC_COLOR1)
-        is_other_bubble = (other.color == LOGIC_COLOR1)
-        is_self_spike = (self.color == LOGIC_COLOR2)
-        is_other_spike = (other.color == LOGIC_COLOR2)
-        # Bubble collides with Spike => Bubble pops
-        if is_self_bubble and is_other_spike:
-            to_remove.add(self)
-            pop_events.append((self.x, self.y))
-            current_tick = pygame.time.get_ticks()
-            if sound_options == 1:
-                if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                    collision_sound.play()
-                    last_collision_sound_tick = current_tick
-            elif sound_options == 2:
-                if pop_sound_list and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                    random.choice(pop_sound_list).play()
-                    last_collision_sound_tick = current_tick
-        elif is_other_bubble and is_self_spike:
-            to_remove.add(other)
-            pop_events.append((other.x, other.y))
-            current_tick = pygame.time.get_ticks()
-            if sound_options == 1:
-                if collision_sound and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                    collision_sound.play()
-                    last_collision_sound_tick = current_tick
-            elif sound_options == 2:
-                if pop_sound_list and current_tick - last_collision_sound_tick > SOUND_COOLDOWN_MS:
-                    pop_sound_list[current_pop_sound_index].play()
-                    current_pop_sound_index = (current_pop_sound_index + 1) % len(pop_sound_list)
-                    last_collision_sound_tick = current_tick
-
-# ------------------------------------------------------------------------
-# Create Items
-# ------------------------------------------------------------------------
-def create_items(count1, count2, seed=None):
-    if seed is not None:
-        random.seed(seed)
-    items = []
-    # Bubbles
-    for _ in range(count1):
-        w_r = TEAM1_WALL_RADIUS
-        c_r = TEAM1_COLLISION_RADIUS
-        max_x = RENDER_WIDTH - w_r
-        max_y = RENDER_HEIGHT - w_r
-        final_x = random.randint(w_r, max_x)
-        final_y = random.randint(w_r, max_y)
-        start_y = random.randint(-1000, -w_r)
-        vx = TEAM1_SPEED if random.random() < 0.5 else -TEAM1_SPEED
-        vy = TEAM1_SPEED if random.random() < 0.5 else -TEAM1_SPEED
-        items.append(Item(
-            x=final_x, y=start_y,
-            wall_radius=w_r,
-            collision_radius=c_r,
-            color=LOGIC_COLOR1,
-            vx=vx, vy=vy,
-            final_x=final_x, final_y=final_y, start_y=start_y
-        ))
-    # Spikes
-    for _ in range(count2):
-        w_r = TEAM2_WALL_RADIUS
-        c_r = TEAM2_COLLISION_RADIUS
-        max_x = RENDER_WIDTH - w_r
-        max_y = RENDER_HEIGHT - w_r
-        final_x = random.randint(w_r, max_x)
-        final_y = random.randint(w_r, max_y)
-        start_y = random.randint(-1000, -w_r)
-        vx = TEAM2_SPEED if random.random() < 0.5 else -TEAM2_SPEED
-        vy = TEAM2_SPEED if random.random() < 0.5 else -TEAM2_SPEED
-        items.append(Item(
-            x=final_x, y=start_y,
-            wall_radius=w_r,
-            collision_radius=c_r,
-            color=LOGIC_COLOR2,
-            vx=vx, vy=vy,
-            final_x=final_x, final_y=final_y, start_y=start_y
-        ))
-    return items
-
-# ------------------------------------------------------------------------
-# Spatial Partition
-# ------------------------------------------------------------------------
-def spatial_partitioning(items):
-    grid = {}
-    size = GRID_SIZE
-    for it in items:
-        grid_x = int(it.x // size)
-        grid_y = int(it.y // size)
-        cell = (grid_x, grid_y)
-        if cell not in grid:
-            grid[cell] = []
-        grid[cell].append(it)
-    return grid
-
-# ------------------------------------------------------------------------
-# Check Collisions
-# ------------------------------------------------------------------------
-def check_collisions(grid, current_time, items, explosions):
-    to_remove = set()
-    pop_events = []
-    for (cx, cy), cell_items in grid.items():
-        c_len = len(cell_items)
-        for i in range(c_len):
-            it_i = cell_items[i]
-            for j in range(i + 1, c_len):
-                it_j = cell_items[j]
-                if it_i.check_collision(it_j):
-                    it_i.resolve_collision(it_j, current_time, to_remove, pop_events)
-        for ox, oy in NEIGHBOR_OFFSETS:
-            neighbor = (cx + ox, cy + oy)
-            if neighbor in grid:
-                neighbor_items = grid[neighbor]
-                for it_i in cell_items:
-                    for it_j in neighbor_items:
-                        if it_i.check_collision(it_j):
-                            it_i.resolve_collision(it_j, current_time, to_remove, pop_events)
-    if to_remove:
-        for dead in to_remove:
-            if dead in items:
-                items.remove(dead)
-    current_tick = pygame.time.get_ticks()
-    for (px, py) in pop_events:
-        explosions.append(PopAnimation(px, py, current_tick))
-
-def determine_initial_dominance():
-    global dominant_color, submissive_color
-    if TEAM1_COUNT < TEAM2_COUNT:
-        dominant_color, submissive_color = LOGIC_COLOR1, LOGIC_COLOR2
-    elif TEAM2_COUNT < TEAM1_COUNT:
-        dominant_color, submissive_color = LOGIC_COLOR2, LOGIC_COLOR1
-    else:
-        dominant_color, submissive_color = LOGIC_COLOR1, LOGIC_COLOR2
-
-# ------------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------------
 def main():
-    global collision_song_pos
     determine_initial_dominance()
-    items = create_items(TEAM1_COUNT, TEAM2_COUNT, seed=SEED)
+    items = create_items(seed=SEED)
     clock = pygame.time.Clock()
     scoreboard_font = pygame.font.SysFont(None, SCOREBOARD_FONT_SIZE)
     winner_font = pygame.font.SysFont(None, 72)
@@ -492,11 +524,11 @@ def main():
         pygame.display.flip()
         clock.tick(FPS)
 
-    # 2) Countdown + falling
+    # 2) Countdown + falling (using countdown_sound always)
     countdown_font = pygame.font.SysFont(None, 100)
     for second in [3, 2, 1]:
-        if collision_sound:
-            collision_sound.play()
+        if countdown_sound:
+            countdown_sound.play()
         segment_start_time = pygame.time.get_ticks()
         while pygame.time.get_ticks() - segment_start_time < 1000:
             for event in pygame.event.get():
@@ -526,7 +558,7 @@ def main():
     if start_sound:
         start_sound.play()
 
-    # 4) Ambient sound
+    # 4) Ambient sound (only for sound option 1)
     if sound_options == 1 and ambient_sound:
         ambient_sound.play(loops=-1)
 
@@ -591,7 +623,7 @@ def main():
                         collision_sound.play()
                     items.remove(it)
             winner_declared = True
-            winner_text = f"{TEAM1_NAME} WINS!"
+            winner_text = f"{'Bubbles'} WINS!"
             winner_declared_time = current_ticks
 
         # Winner logic from collisions (if bubbles or spike count reaches 0)
@@ -605,17 +637,15 @@ def main():
                 frozen_elapsed_seconds = (current_ticks - simulation_start) / 1000.0
             elif count_type2 == 0:
                 winner_declared = True
-                winner_text = f"{TEAM1_NAME} WINS!"
+                winner_text = f"{'Bubbles'} WINS!"
                 winner_declared_time = current_ticks
 
         # Draw scoreboard: bubble count on top left, timer on top right.
         if SHOW_SCOREBOARD:
-            # Bubble count (top left)
-            bubble_text = f"{TEAM1_NAME}: {count_type1}"
+            bubble_text = f"Bubbles: {count_type1}"
             bubble_surf = render_text_with_outline(scoreboard_font, bubble_text, TEAM1_TEXT_COLOR, (255, 255, 255), 2)
             screen.blit(bubble_surf, (25, 25))
             
-            # Timer (top right) with color based on remaining time.
             if time_left > (2/3 * SIMULATION_DURATION_SECONDS):
                 timer_color = (0, 255, 0)
             elif time_left > 10:

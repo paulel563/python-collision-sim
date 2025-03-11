@@ -3,7 +3,6 @@ import pygame
 import random
 import math  # Needed for cos/sin
 
-
 # ------------------------------------------------------------------------
 # Configuration
 # ------------------------------------------------------------------------
@@ -41,6 +40,10 @@ INITIAL_PAUSE_SECONDS = 3
 
 # New variable for simulation duration (timer countdown)
 SIMULATION_DURATION_SECONDS = 30
+
+# New timer font sizes for dynamic scaling
+TIMER_FONT_SIZE_START = 30
+TIMER_FONT_SIZE_END = 52
 
 # ------------------------------------------------------------------------
 # Bubble Group Settings
@@ -81,7 +84,7 @@ NEIGHBOR_OFFSETS = [
 # Show scoreboard for bubble count and timer in the corners
 SHOW_SCOREBOARD = True
 SHOW_WINNER_OVERLAY = True
-SCOREBOARD_FONT_SIZE = 25
+SCOREBOARD_FONT_SIZE = 37
 
 # ------------------------------------------------------------------------
 # Sound Config
@@ -167,6 +170,14 @@ if os.path.exists("start.wav"):
     start_sound.set_volume(START_VOLUME_PERCENT / 100.0)
 else:
     start_sound = None
+
+# Spike pop sound for when the spike is popped (always plays), default to pop5.wav.
+spike_pop_sound_file = "collision7.mp3"
+if os.path.exists(spike_pop_sound_file):
+    spike_pop_sound = pygame.mixer.Sound(spike_pop_sound_file)
+    spike_pop_sound.set_volume(COLLISION_VOLUME_PERCENT / 100.0)
+else:
+    spike_pop_sound = None
 
 # (Removed the pygame.mixer.music loading block from the original SOUND_OPTION==2 branch)
 
@@ -608,6 +619,7 @@ def main():
                 new_explosions.append(ex)
         explosions = new_explosions
 
+
         scaled_surface = pygame.transform.smoothscale(render_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
         screen.blit(scaled_surface, (0, 0))
 
@@ -625,11 +637,12 @@ def main():
             for it in items[:]:
                 if it.color == LOGIC_COLOR2:
                     explosions.append(PopAnimation(it.x, it.y, current_ticks))
-                    if collision_sound:
-                        collision_sound.play()
+                    # Always play spike pop sound regardless of sound option
+                    if spike_pop_sound:
+                        spike_pop_sound.play()
                     items.remove(it)
             winner_declared = True
-            winner_text = f"{'Bubbles'} WINS!"
+            winner_text = f"{'Bubbles'} WIN!"
             winner_declared_time = current_ticks
 
         # Winner logic from collisions (if bubbles or spike count reaches 0)
@@ -643,10 +656,10 @@ def main():
                 frozen_elapsed_seconds = (current_ticks - simulation_start) / 1000.0
             elif count_type2 == 0:
                 winner_declared = True
-                winner_text = f"{'Bubbles'} WINS!"
+                winner_text = f"{'Bubbles'} WIN!"
                 winner_declared_time = current_ticks
 
-        # Draw scoreboard: bubble count on top left, timer on top right.
+        # Draw scoreboard: bubble count on top left, dynamic timer on top right.
         if SHOW_SCOREBOARD:
             bubble_text = f"Bubbles: {count_type1}"
             bubble_surf = render_text_with_outline(scoreboard_font, bubble_text, TEAM1_TEXT_COLOR, (255, 255, 255), 2)
@@ -659,7 +672,11 @@ def main():
             else:
                 timer_color = (255, 0, 0)
             timer_text = f"{time_left:05.2f}"
-            timer_surf = render_text_with_outline(scoreboard_font, timer_text, timer_color, (255, 255, 255), 2)
+            # Compute the current timer font size based on the remaining time
+            progress = 1 - (time_left / SIMULATION_DURATION_SECONDS)
+            current_timer_font_size = int(TIMER_FONT_SIZE_START + (TIMER_FONT_SIZE_END - TIMER_FONT_SIZE_START) * progress)
+            timer_font = pygame.font.SysFont(None, current_timer_font_size)
+            timer_surf = render_text_with_outline(timer_font, timer_text, timer_color, (255, 255, 255), 2)
             timer_x = SCREEN_WIDTH - timer_surf.get_width() - 25
             screen.blit(timer_surf, (timer_x, 25))
 

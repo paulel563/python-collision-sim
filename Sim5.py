@@ -14,7 +14,7 @@ RENDER_HEIGHT = 1920
 FPS = 60
 
 # TEAM-SPECIFIC SPEEDS for spikes remain the same
-TEAM2_SPEED = 5
+TEAM2_SPEED = 6
 
 TEAM2_WALL_RADIUS = 170
 TEAM2_COLLISION_RADIUS = 200
@@ -30,20 +30,27 @@ TEAM2_COUNT = 1  # Number of spikes
 LOGIC_COLOR1 = (255, 69, 0)    # Bubbles (both groups share this)
 LOGIC_COLOR2 = (0, 255, 255)   # Spikes
 
-TEAM1_TEXT_COLOR = (219, 168, 223)
-TEAM2_TEXT_COLOR = (219, 168, 223)
+TEAM1_TEXT_COLOR = (189, 138, 193)
+TEAM2_TEXT_COLOR = (189, 138, 193)
 
 BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 4
+SEED = 20               #11, 12 and 20 for 25sec bubble W
 INITIAL_PAUSE_SECONDS = 3
 
 # New variable for simulation duration (timer countdown)
-SIMULATION_DURATION_SECONDS = 30
+SIMULATION_DURATION_SECONDS = 25
 
 # New timer font sizes for dynamic scaling
 TIMER_FONT_SIZE_START = 30
 TIMER_FONT_SIZE_END = 52
+
+# New configuration for prompt text (always on after the initial pause)
+SHOW_PROMPT_TEXT = True
+PROMPT_TEXT = "Will the Bubbles be Popped in Time?"
+PROMPT_FONT_SIZE = 30
+PROMPT_COLOR = [0,0,0]
+
 
 # ------------------------------------------------------------------------
 # Bubble Group Settings
@@ -57,7 +64,7 @@ SMALL_BUBBLE_SETTINGS = {
     "speed": 1,
     "image_path": "bubble.png",
     "image_size": (75, 75),
-    "pop_sound_files": ["pop2.wav", "pop4.wav"]
+    "pop_sound_files": ["pop2.wav"]
 }
 
 BIG_BUBBLE_SETTINGS = {
@@ -67,7 +74,7 @@ BIG_BUBBLE_SETTINGS = {
     "speed": 0.5,
     "image_path": "bubble.png",  # If not found, will fall back to a plain surface
     "image_size": (100, 100),
-    "pop_sound_files": ["collision7.mp3", "pop5.wav"]
+    "pop_sound_files": ["collision7.mp3"]
 }
 
 # ------------------------------------------------------------------------
@@ -89,7 +96,7 @@ SCOREBOARD_FONT_SIZE = 37
 # ------------------------------------------------------------------------
 # Sound Config
 # ------------------------------------------------------------------------
-SOUND_COOLDOWN_MS = 100
+SOUND_COOLDOWN_MS = 77
 SWAP_SOUND_COOLDOWN_MS = 500
 
 last_collision_sound_tick = 0
@@ -658,6 +665,15 @@ def main():
                 winner_declared = True
                 winner_text = f"{'Bubbles'} WIN!"
                 winner_declared_time = current_ticks
+
+        # Draw persistent prompt text (always on after the 3-second pause)
+        if SHOW_PROMPT_TEXT:
+            prompt_font = pygame.font.SysFont(None, PROMPT_FONT_SIZE)
+            prompt_surf = render_text_with_outline(prompt_font, PROMPT_TEXT, PROMPT_COLOR, (255, 255, 255), 2)
+            # Center the prompt in the middle of the screen
+            prompt_rect = prompt_surf.get_rect(center=(SCREEN_WIDTH // 2, 95))
+            screen.blit(prompt_surf, prompt_rect)
+
 
         # Draw scoreboard: bubble count on top left, dynamic timer on top right.
         if SHOW_SCOREBOARD:

@@ -9,7 +9,7 @@ from Box2D import b2World, b2ContactListener, b2EdgeShape
 # CONFIGURABLE VARIABLES
 ###############################################################################
 # Random seed
-SEED = 55
+SEED = 92
 
 # Screen settings
 SCREEN_WIDTH = 432       # Display window width
@@ -21,7 +21,7 @@ FRAMERATE = 60
 PPM = 10.0  # Pixels per meter
 
 # Gravity rotates around to "bounce"
-GRAVITY_MAG = 50         # Gravity magnitude
+GRAVITY_MAG = 70        # Gravity magnitude
 GRAVITY_ROT_SPEED = 0.0005  # How fast gravity rotates
 
 # Ball settings
@@ -29,11 +29,11 @@ BALL_RADIUS = 1
 BALL_COLOR = (255, 255, 255)
 
 # Rings settings
-NUM_RINGS = 15
+NUM_RINGS = 14
 INITIAL_RING_RADIUS = 8
 RING_DISTANCE = 2.5       # You can change this to increase/decrease ring spacing
-INITIAL_ROTATION_SPEED = 1.55
-ROTATION_SPEED_MULTIPLIER = 1.01
+INITIAL_ROTATION_SPEED = 1.50
+ROTATION_SPEED_MULTIPLIER = 1.003
 INITIAL_HUE = 0
 RING_LINE_THICKNESS = 8
 
@@ -43,7 +43,7 @@ TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
 
 # NEW VARIABLE: the max angle (0..360) where edges are drawn. The rest is the gap.
-CIRCLE_GAP_END_ANGLE = 298.0
+CIRCLE_GAP_END_ANGLE = 297.0
 
 # Explosion / Particle settings
 PARTICLE_COUNT = 20
@@ -61,7 +61,7 @@ INITIAL_PAUSE_TIME = 3.0
 
 # SOUND AND VOLUME SETTINGS
 COLLISION_VOLUME = 0.69
-DESTROY_VOLUME = 0.3
+DESTROY_VOLUME = 0.35
 DESTROY_SOUND_FILE = "assets/Mustard.mp3"
 COLLISION_SOUND_FILES = [
     "assets/(1).wav",
@@ -74,8 +74,8 @@ TEXT_COLOR = (255, 255, 255)
 TEXT_POSITION = (SCREEN_WIDTH // 2, 70)  # Centered horizontally, 80px from top
 
 # TIMER SETTINGS
-TIMER_DURATION = 35.0  # Default timer length in seconds (can be changed)
-TIMER_POSITION = (SCREEN_WIDTH // 2, 30)  # Timer displayed above bounce count
+TIMER_DURATION = 30.0  # Default timer length in seconds (can be changed)
+TIMER_POSITION = (SCREEN_WIDTH // 2, 37)  # Timer displayed above bounce count
 
 # Initialize the random seed
 random.seed(SEED)

@@ -68,6 +68,12 @@ COLLISION_SOUND_FILES = [
     "assets/(2).wav",
     "assets/(3).wav"
 ]
+COLLISION_SOUND2 = "tvoffInstra.wav"
+
+# NEW SOUND OPTION SETTINGS
+SOUND_OPTION = 1  # 1: current behavior, 2: new snippet-based behavior
+SNIPPET_DURATION = 0.5  # snippet duration in seconds (adjust as needed)
+COLLISION_OVERLAP_BUFFER = 0.01  # collision overlap buffer in seconds (10 ms)
 
 # TEXT RENDER SETTINGS
 TEXT_COLOR = (255, 255, 255)
@@ -337,30 +343,72 @@ class Ring:
 class Sounds:
     def __init__(self):
         mixer.init()
-        # Destroy sound
+        # Destroy sound remains unchanged
         self.destroySound = pygame.mixer.Sound(DESTROY_SOUND_FILE)
         self.destroySound.set_volume(DESTROY_VOLUME)
 
-        # Collision sounds
-        self.sounds = [pygame.mixer.Sound(f) for f in COLLISION_SOUND_FILES]
-        for s in self.sounds:
-            s.set_volume(COLLISION_VOLUME)
-
-        self.i = 0
+        if SOUND_OPTION == 1:
+            # Option 1: current behavior using multiple collision sound files
+            self.sounds = [pygame.mixer.Sound(f) for f in COLLISION_SOUND_FILES]
+            for s in self.sounds:
+                s.set_volume(COLLISION_VOLUME)
+            self.i = 0
+        elif SOUND_OPTION == 2:
+            # Option 2: new snippet-based behavior with one collision sound file
+            self.collision_file = COLLISION_SOUND2
+            pygame.mixer.music.load(self.collision_file)
+            self.collisionSoundLength = pygame.mixer.Sound(self.collision_file).get_length()
+            pygame.mixer.music.set_volume(COLLISION_VOLUME)
+            self.current_pos = 0.0  # track current play position (in seconds)
+            self.last_collision_time = -10000  # in milliseconds; ensures first collision plays
+            # Custom event for stopping sound
+            self.STOP_SOUND_EVENT = pygame.USEREVENT + 1
 
     def play(self):
-        # stop all sound
-        for sound in self.sounds:
-            sound.stop()
-        # play sound
-        sound = self.sounds[self.i]
-        sound.play()
-        self.i += 1
-        if self.i >= len(self.sounds):
-            self.i = 0
+        if SOUND_OPTION == 1:
+            # Option 1: current behavior
+            for sound in self.sounds:
+                sound.stop()
+            sound = self.sounds[self.i]
+            sound.play()
+            self.i += 1
+            if self.i >= len(self.sounds):
+                self.i = 0
+        elif SOUND_OPTION == 2:
+            # Option 2: new snippet-based behavior
+            current_time = pygame.time.get_ticks()  # current time in milliseconds
+            # If collision occurs within the overlap buffer, do not play
+            if (current_time - self.last_collision_time) < (COLLISION_OVERLAP_BUFFER * 1000):
+                return
+
+            # Stop any currently playing sound
+            pygame.mixer.music.stop()
+            
+            self.last_collision_time = current_time
+            
+            # Calculate remaining time and adjust duration if needed
+            remaining_time = self.collisionSoundLength - self.current_pos
+            duration = min(SNIPPET_DURATION, remaining_time)
+            
+            # Play the snippet from current position
+            pygame.mixer.music.play(start=self.current_pos)
+            
+            # Schedule stop event
+            pygame.time.set_timer(self.STOP_SOUND_EVENT, int(duration * 1000))
+            # We'll handle the stop and position update in the main loop
 
     def playDestroySound(self):
         self.destroySound.play()
+
+    def handle_events(self):
+        # Handle custom sound stop event
+        for event in pygame.event.get(self.STOP_SOUND_EVENT):
+            if event.type == self.STOP_SOUND_EVENT:
+                pygame.mixer.music.stop()
+                pygame.time.set_timer(self.STOP_SOUND_EVENT, 0)  # Clear the timer
+                self.current_pos += SNIPPET_DURATION
+                if self.current_pos >= self.collisionSoundLength:
+                    self.current_pos = 0.0  # Reset to start if we reach the end
 
 ###############################################################################
 # Game
@@ -526,6 +574,9 @@ def main():
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     return
+            # Handle sound events
+            if SOUND_OPTION == 2:
+                sounds.handle_events()
 
         utils.calDeltaTime()
         utils.screen.fill(SCREEN_BACKGROUND_COLOR)

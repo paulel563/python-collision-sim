@@ -35,7 +35,7 @@ TEAM2_TEXT_COLOR = (189, 138, 193)
 
 BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 20               #11, 12 and 20 for 25sec bubble W
+SEED = 20               # 11, 12 and 20 for 25sec bubble W
 INITIAL_PAUSE_SECONDS = 3
 
 # New variable for simulation duration (timer countdown)
@@ -47,10 +47,10 @@ TIMER_FONT_SIZE_END = 52
 
 # New configuration for prompt text (always on after the initial pause)
 SHOW_PROMPT_TEXT = True
-PROMPT_TEXT = "Will the Bubbles be Popped in Time?"
+# The prompt text will be constructed dynamically in the main loop.
 PROMPT_FONT_SIZE = 30
-PROMPT_COLOR = [0,0,0]
-
+# PROMPT_COLOR is used for the static text parts (black) while numbers will use TEAM1_TEXT_COLOR.
+PROMPT_COLOR = (0, 0, 0)
 
 # ------------------------------------------------------------------------
 # Bubble Group Settings
@@ -96,12 +96,12 @@ SCOREBOARD_FONT_SIZE = 37
 # ------------------------------------------------------------------------
 # Sound Config
 # ------------------------------------------------------------------------
-SOUND_COOLDOWN_MS = 77
+SOUND_COOLDOWN_MS = 72
 SWAP_SOUND_COOLDOWN_MS = 500
 
 last_collision_sound_tick = 0
 
-AMBIENT_VOLUME_PERCENT = 60
+AMBIENT_VOLUME_PERCENT = 30
 COLLISION_VOLUME_PERCENT = 20
 SWAP_VOLUME_PERCENT = 140
 VICTORY_VOLUME_PERCENT = 80
@@ -116,6 +116,8 @@ pygame.mixer.init()
 # sound_options: 1 uses the original single collision sound.
 # 2 uses pop sounds (now per bubble group) for each bubble pop.
 sound_options = 2  # Change to 1 for original behavior
+
+ambient_on = True
 
 # Variables used by the original collision song (if needed)
 COLLISION_SONG_PATH = "TMOTTBG.mp3"
@@ -159,6 +161,10 @@ if sound_options == 2:
             big_bubble_pop_sound_list.append(sound)
         else:
             print(f"Big bubble pop sound file {file} not found!")
+
+if os.path.exists("ambient.wav"):
+     ambient_sound = pygame.mixer.Sound("ambient.wav")
+     ambient_sound.set_volume(AMBIENT_VOLUME_PERCENT / 100.0)
 
 if os.path.exists("swap.wav"):
     swap_sound = pygame.mixer.Sound("swap.wav")
@@ -583,7 +589,7 @@ def main():
         start_sound.play()
 
     # 4) Ambient sound (only for sound option 1)
-    if sound_options == 1 and ambient_sound:
+    if (sound_options == 1) or (ambient_on):
         ambient_sound.play(loops=-1)
 
     # Set simulation start time for the timer
@@ -626,7 +632,6 @@ def main():
                 new_explosions.append(ex)
         explosions = new_explosions
 
-
         scaled_surface = pygame.transform.smoothscale(render_surface, (SCREEN_WIDTH, SCREEN_HEIGHT))
         screen.blit(scaled_surface, (0, 0))
 
@@ -644,7 +649,6 @@ def main():
             for it in items[:]:
                 if it.color == LOGIC_COLOR2:
                     explosions.append(PopAnimation(it.x, it.y, current_ticks))
-                    # Always play spike pop sound regardless of sound option
                     if spike_pop_sound:
                         spike_pop_sound.play()
                     items.remove(it)
@@ -658,7 +662,6 @@ def main():
                 winner_declared = True
                 winner_text = f"{TEAM2_NAME} WINS!"
                 winner_declared_time = current_ticks
-                # Freeze the timer when bubbles are all gone (spike wins)
                 freeze_timer = True
                 frozen_elapsed_seconds = (current_ticks - simulation_start) / 1000.0
             elif count_type2 == 0:
@@ -666,35 +669,45 @@ def main():
                 winner_text = f"{'Bubbles'} WIN!"
                 winner_declared_time = current_ticks
 
-        # Draw persistent prompt text (always on after the 3-second pause)
-        if SHOW_PROMPT_TEXT:
-            prompt_font = pygame.font.SysFont(None, PROMPT_FONT_SIZE)
-            prompt_surf = render_text_with_outline(prompt_font, PROMPT_TEXT, PROMPT_COLOR, (255, 255, 255), 2)
-            # Center the prompt in the middle of the screen
-            prompt_rect = prompt_surf.get_rect(center=(SCREEN_WIDTH // 2, 95))
-            screen.blit(prompt_surf, prompt_rect)
+        # --- New Prompt & Timer Drawing ---
+        # Construct the prompt: "Will [bubble count] Bubbles Survive the Spiky Ball?"
+        part1 = "Will "
+        part2 = f"{count_type1}"
+        part3 = " Bubbles Survive the Spiky Ball?"
+        part4 = " Bubble Survive the Spiky Ball?"
+        prompt_font = pygame.font.SysFont(None, PROMPT_FONT_SIZE)
+        surf1 = render_text_with_outline(prompt_font, part1, PROMPT_COLOR, (255, 255, 255), 2)
+        surf2 = render_text_with_outline(prompt_font, part2, TEAM1_TEXT_COLOR, (255, 255, 255), 2)
+        if count_type1 != 1:
+            surf3 = render_text_with_outline(prompt_font, part3, PROMPT_COLOR, (255, 255, 255), 2)
+        else:
+            surf3 = render_text_with_outline(prompt_font, part4, PROMPT_COLOR, (255, 255, 255), 2)
+        #surf3 = render_text_with_outline(prompt_font, part3, PROMPT_COLOR, (255, 255, 255), 2)
+        total_width = surf1.get_width() + surf2.get_width() + surf3.get_width()
+        max_height = max(surf1.get_height(), surf2.get_height(), surf3.get_height())
+        prompt_combined = pygame.Surface((total_width, max_height), pygame.SRCALPHA)
+        prompt_combined.blit(surf1, (0, 0))
+        prompt_combined.blit(surf2, (surf1.get_width(), 0))
+        prompt_combined.blit(surf3, (surf1.get_width() + surf2.get_width(), 0))
+        # Position the prompt near the top of the screen (e.g., midtop at y=40)
+        prompt_rect = prompt_combined.get_rect(midtop=(SCREEN_WIDTH // 2, 50))
+        screen.blit(prompt_combined, prompt_rect)
 
-
-        # Draw scoreboard: bubble count on top left, dynamic timer on top right.
-        if SHOW_SCOREBOARD:
-            bubble_text = f"Bubbles: {count_type1}"
-            bubble_surf = render_text_with_outline(scoreboard_font, bubble_text, TEAM1_TEXT_COLOR, (255, 255, 255), 2)
-            screen.blit(bubble_surf, (25, 25))
-            
-            if time_left > (2/3 * SIMULATION_DURATION_SECONDS):
-                timer_color = (0, 255, 0)
-            elif time_left > 10:
-                timer_color = (255, 215, 0)
-            else:
-                timer_color = (255, 0, 0)
-            timer_text = f"{time_left:05.2f}"
-            # Compute the current timer font size based on the remaining time
-            progress = 1 - (time_left / SIMULATION_DURATION_SECONDS)
-            current_timer_font_size = int(TIMER_FONT_SIZE_START + (TIMER_FONT_SIZE_END - TIMER_FONT_SIZE_START) * progress)
-            timer_font = pygame.font.SysFont(None, current_timer_font_size)
-            timer_surf = render_text_with_outline(timer_font, timer_text, timer_color, (255, 255, 255), 2)
-            timer_x = SCREEN_WIDTH - timer_surf.get_width() - 25
-            screen.blit(timer_surf, (timer_x, 25))
+        # Timer: same dynamic logic as before, but now centered above the prompt.
+        if time_left > (2/3 * SIMULATION_DURATION_SECONDS):
+            timer_color = (0, 255, 0)
+        elif time_left > 10:
+            timer_color = (255, 215, 0)
+        else:
+            timer_color = (255, 0, 0)
+        timer_text = f"{time_left:05.2f}"
+        progress = 1 - (time_left / SIMULATION_DURATION_SECONDS)
+        current_timer_font_size = int(TIMER_FONT_SIZE_START + (TIMER_FONT_SIZE_END - TIMER_FONT_SIZE_START) * progress)
+        timer_font = pygame.font.SysFont(None, current_timer_font_size)
+        timer_surf = render_text_with_outline(timer_font, timer_text, timer_color, (255, 255, 255), 2)
+        timer_margin = 8
+        timer_rect = timer_surf.get_rect(midbottom=(SCREEN_WIDTH // 2, 113))
+        screen.blit(timer_surf, timer_rect)
 
         # Winner overlay (only show if 1 second has passed since win condition)
         if SHOW_WINNER_OVERLAY and winner_declared and winner_text and winner_declared_time is not None:
@@ -713,3 +726,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

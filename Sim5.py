@@ -35,11 +35,11 @@ TEAM2_TEXT_COLOR = (189, 138, 193)
 
 BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 20               # 11, 12 and 20 for 25sec bubble W
+SEED = 24               # 11, 12 and 20 for 25sec bubble W
 INITIAL_PAUSE_SECONDS = 3
 
 # New variable for simulation duration (timer countdown)
-SIMULATION_DURATION_SECONDS = 25
+SIMULATION_DURATION_SECONDS = 20
 
 # New timer font sizes for dynamic scaling
 TIMER_FONT_SIZE_START = 30
@@ -58,7 +58,7 @@ PROMPT_COLOR = (0, 0, 0)
 # Both groups share the same logic color (LOGIC_COLOR1) so they contribute to the same counter.
 # Each group now defines its own count, wall/collision radius, speed, image, and pop sound list.
 SMALL_BUBBLE_SETTINGS = {
-    "count": 150,
+    "count": 140,
     "wall_radius": 35,
     "collision_radius": 35,
     "speed": 1,
@@ -68,7 +68,7 @@ SMALL_BUBBLE_SETTINGS = {
 }
 
 BIG_BUBBLE_SETTINGS = {
-    "count": 50,
+    "count": 60,
     "wall_radius": 50,
     "collision_radius": 50,
     "speed": 0.5,

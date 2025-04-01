@@ -98,7 +98,7 @@ START_VOLUME_PERCENT = 40  # Volume for the "start.wav" if you want to adjust it
 # NEW: Sound Design Option Settings
 # ------------------------------------------------------------------------
 # SOUND_OPTION: set to 1 for current design, set to 2 for new collision-song design
-SOUND_OPTION = 2
+SOUND_OPTION = 1
 
 # For Option 2: collision song based design (only active when SOUND_OPTION == 2)
 COLLISION_SONG_PATH = "TMOTTBG.mp3"  # Change as needed

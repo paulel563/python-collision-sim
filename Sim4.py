@@ -9,7 +9,7 @@ from Box2D import b2World, b2ContactListener, b2EdgeShape
 # CONFIGURABLE VARIABLES
 ###############################################################################
 # Random seed
-SEED = 66
+SEED = 1
 
 # Screen settings
 SCREEN_WIDTH = 432       # Display window width
@@ -21,7 +21,7 @@ FRAMERATE = 60
 PPM = 10.0  # Pixels per meter
 
 # Gravity rotates around to "bounce"
-GRAVITY_MAG = 80        # Gravity magnitude
+GRAVITY_MAG = 85        # Gravity magnitude
 GRAVITY_ROT_SPEED = 0.0005  # How fast gravity rotates
 
 # Ball settings
@@ -32,8 +32,8 @@ BALL_COLOR = (255, 255, 255)
 NUM_RINGS = 14
 INITIAL_RING_RADIUS = 7
 RING_DISTANCE = 2.5       # You can change this to increase/decrease ring spacing
-INITIAL_ROTATION_SPEED = 1.50
-ROTATION_SPEED_MULTIPLIER = 1.003
+INITIAL_ROTATION_SPEED = 1.40
+ROTATION_SPEED_MULTIPLIER = 1.008
 INITIAL_HUE = 0
 RING_LINE_THICKNESS = 8
 
@@ -43,7 +43,7 @@ TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
 
 # NEW VARIABLE: the max angle (0..360) where edges are drawn. The rest is the gap.
-CIRCLE_GAP_END_ANGLE = 298.0
+CIRCLE_GAP_END_ANGLE = 299.0
 
 # Explosion / Particle settings
 PARTICLE_COUNT = 20
@@ -62,7 +62,8 @@ INITIAL_PAUSE_TIME = 3.0
 # SOUND AND VOLUME SETTINGS
 COLLISION_VOLUME = 0.69
 DESTROY_VOLUME = 0.5
-DESTROY_SOUND_FILE = "assets/Mustard.mp3"
+DESTROY_SOUND_FILE = "discord.mp3"
+#DESTROY_SOUND_FILE = "assets/Mustard.mp3"
 COLLISION_SOUND_FILES = [
     "assets/(1).wav",
     "assets/(2).wav",
@@ -75,7 +76,7 @@ COLLISION_SOUND2 = "ed.ogg"  # converted to OGG
 
 # NEW SOUND OPTION SETTINGS
 SOUND_OPTION = 2  # 1: current behavior, 2: new snippet-based behavior
-SNIPPET_DURATION = 0.55  # snippet duration in seconds (adjust as needed)
+SNIPPET_DURATION = 0.45  # snippet duration in seconds (adjust as needed)
 COLLISION_OVERLAP_BUFFER = 0.01  # collision overlap buffer in seconds (10 ms)
 
 # TEXT RENDER SETTINGS

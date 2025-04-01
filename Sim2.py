@@ -13,30 +13,30 @@ RENDER_WIDTH = 1080   # Render resolution width
 RENDER_HEIGHT = 1920  # Window rendering height
 FPS = 60
 
-PARTICLE_RADIUS = 15
+PARTICLE_RADIUS = 17
 PARTICLE_SPEED = 0.71
-COLOR1_COUNT = 700    # Number of particles of COLOR1
-COLOR2_COUNT = 700    # Number of particles of COLOR2
-LAST_NUM_PARTICLES = 200  # Threshold for a forced color dominance swap
+COLOR1_COUNT = 500    # Number of particles of COLOR1
+COLOR2_COUNT = 500    # Number of particles of COLOR2
+LAST_NUM_PARTICLES = 180  # Threshold for a forced color dominance swap
 
-MIDDLE_LAST_NUM_PARTICLES = 255
-MIDDLE_GROUP = 10
+MIDDLE_LAST_NUM_PARTICLES = 240
+MIDDLE_GROUP = 12
 
-SECOND_LAST_NUM_PARTICLES = 65
-SECOND_LAST_GROUP = 18
+SECOND_LAST_NUM_PARTICLES = 75
+SECOND_LAST_GROUP = 15
 
 FINAL_LAST_NUM_PARTICLES = 0
-FINAL_LAST_GROUP = 26
+FINAL_LAST_GROUP = 22
 
-COLOR2 = (255,171,7)   # First color (Orange)
-COLOR1 = (14,141,222)    # Second color (Blue?)
-COLOR2_NAME = "Orange"
-COLOR1_NAME = "Blue"
+COLOR2 = (114,222,117)   # First color (Green2)
+COLOR1 = (14,141,222)    # Second color (Blue2)
+COLOR2_NAME = "Green"
+COLOR1_NAME = "Blue" 
 
 BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 4
-CONVERSION_COOLDOWN = 0.06
+SEED = 2
+CONVERSION_COOLDOWN = 0.065
 INITIAL_PAUSE_SECONDS = 3
 GRID_SIZE = 50
 
@@ -48,7 +48,11 @@ NEIGHBOR_OFFSETS = [
 
 SHOW_SCOREBOARD = True
 SHOW_WINNER_OVERLAY = True
-SCOREBOARD_FONT_SIZE = 24
+SCOREBOARD_FONT_SIZE = 28
+
+# New variables for prediction text
+SHOW_PREDICTION_TEXT = True
+PREDICTION_FONT_SIZE = 40
 
 SOUND_COOLDOWN_MS = 100
 SWAP_SOUND_COOLDOWN_MS = 500
@@ -514,6 +518,8 @@ def main():
 
     scoreboard_font = pygame.font.SysFont(None, SCOREBOARD_FONT_SIZE)
     winner_font = pygame.font.SysFont(None, 55)
+    # Initialize prediction font
+    prediction_font = pygame.font.SysFont(None, PREDICTION_FONT_SIZE)
 
     winner_declared = False
     winner_text = ""
@@ -636,6 +642,15 @@ def main():
             right_text_w, _ = scoreboard_font.size(right_text)
             right_pos = (SCREEN_WIDTH - right_text_w - 23, 23)
             draw_text_with_border(screen, right_text, scoreboard_font, COLOR2, (255,255,255), right_pos)
+
+        # Draw the prediction text if enabled and no winner yet.
+        if SHOW_PREDICTION_TEXT and not winner_declared:
+            prediction_text = "what color will win?"
+            # Position: centered horizontally, a bit lower than the scoreboard (e.g. below the left/right texts)
+            prediction_y = 23 + scoreboard_font.get_height() + 22
+            pred_text_surface = prediction_font.render(prediction_text, True, (0,0,0))
+            pred_text_rect = pred_text_surface.get_rect(center=(SCREEN_WIDTH//2, prediction_y))
+            draw_text_with_border(screen, prediction_text, prediction_font, (0,0,0), (255,255,255), pred_text_rect.topleft)
 
         # Check if winner
         if not winner_declared:

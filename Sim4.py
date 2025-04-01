@@ -87,6 +87,18 @@ TEXT_POSITION = (SCREEN_WIDTH // 2, 70)  # Centered horizontally, 80px from top
 TIMER_DURATION = 30.0  # Default timer length in seconds (can be changed)
 TIMER_POSITION = (SCREEN_WIDTH // 2, 37)  # Timer displayed above bounce count
 
+# New Color Setting: 1 for current rainbow behavior, 2 for custom gradient.
+COLOR_SETTING = 2  # Change this to 2 for gradient
+
+# Define the gradient function for COLOR_SETTING 2.
+# This example creates a gradient from green to blue.
+def gradient_color(t, color_start=(0, 255, 0), color_end=(0, 0, 255)):
+    # t should be between 0 and 1
+    r = int(color_start[0] * (1 - t) + color_end[0] * t)
+    g = int(color_start[1] * (1 - t) + color_end[1] * t)
+    b = int(color_start[2] * (1 - t) + color_end[2] * t)
+    return (r, g, b)
+
 # Initialize the random seed
 random.seed(SEED)
 
@@ -290,11 +302,15 @@ class Ring:
                     )
 
     def draw(self, paused=False):
-        global utils
+        global utils, COLOR_SETTING
         if not paused:
             self.hue = (self.hue + utils.deltaTime() / 5) % 1
             self.body.angle += self.rotateDir * utils.deltaTime()
-        self.color = utils.hueToRGB(self.hue)
+        if COLOR_SETTING == 1:
+            self.color = utils.hueToRGB(self.hue)
+        elif COLOR_SETTING == 2:
+            # Use the custom gradient; change the start/end colors as needed.
+            self.color = gradient_color(self.hue, color_start=(0,255,0), color_end=(0,0,255))
         self.draw_edges()
 
     def draw_edges(self):

@@ -13,23 +13,23 @@ RENDER_HEIGHT = 1920
 FPS = 60
 
 # Collision bounding circle (used for letter collision)
-PARTICLE_RADIUS = 40
+PARTICLE_RADIUS = 50
 
 # Movement speed
-PARTICLE_SPEED = 0.5
+PARTICLE_SPEED = 0.82
 
 # ------------------------------------------------------------------------
 # New: Team Names, Image Paths, and Image Sizes
 # ------------------------------------------------------------------------
-TEAM1_NAME = "Dodgers"
-TEAM2_NAME = "Giants"
+TEAM1_NAME = "Baseball"
+TEAM2_NAME = "Soccer"
 
-TEAM1_IMAGE_PATH = "Dodger1.png"  # Replace with your PNG file
-TEAM2_IMAGE_PATH = "Giants1.png"  # Replace with your PNG file
+TEAM1_IMAGE_PATH = "baseball3.png"  # Replace with your PNG file
+TEAM2_IMAGE_PATH = "soccer3.png"  # Replace with your PNG file
 
 # Easy way to change image sizes (width,height)
-TEAM1_IMAGE_SIZE = (75, 75)
-TEAM2_IMAGE_SIZE = (75, 75)
+TEAM1_IMAGE_SIZE = (100, 100)
+TEAM2_IMAGE_SIZE = (100, 100)
 
 # ------------------------------------------------------------------------
 # Initial counts for each team
@@ -38,13 +38,13 @@ TEAM1_COUNT = 100
 TEAM2_COUNT = 100
 
 # Threshold-based phase switching (unchanged)
-LAST_NUM_PARTICLES = 55
-MIDDLE_LAST_NUM_PARTICLES = 35
+LAST_NUM_PARTICLES = 37
+MIDDLE_LAST_NUM_PARTICLES = 52
 MIDDLE_GROUP = 8
 SECOND_LAST_NUM_PARTICLES = 15
-SECOND_LAST_GROUP = 11
+SECOND_LAST_GROUP = 14
 FINAL_LAST_NUM_PARTICLES = 0
-FINAL_LAST_GROUP = 27
+FINAL_LAST_GROUP = 22
 
 # These are purely for dominance/collision logic (not drawn as colors)
 LOGIC_COLOR1 = (255, 69, 0)   # For Team1 in logic
@@ -53,12 +53,12 @@ LOGIC_COLOR2 = (0, 255, 255)  # For Team2 in logic
 # ------------------------------------------------------------------------
 # Colors used for scoreboard text, same as old LETTER1_COLOR / LETTER2_COLOR
 # ------------------------------------------------------------------------
-TEAM1_TEXT_COLOR = (0, 129, 167)   # First color (was LETTER1_COLOR)
-TEAM2_TEXT_COLOR = (255, 90, 0)  # second color (Orange-ish)
+TEAM1_TEXT_COLOR = (83,12,14)   # First color (Red)
+TEAM2_TEXT_COLOR = (9,46,6)  # second color (Green)
 
 BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 1
+SEED = 5
 CONVERSION_COOLDOWN = 0.065
 INITIAL_PAUSE_SECONDS = 3  # This is our separate initial pause
 GRID_SIZE = 50
@@ -72,9 +72,11 @@ NEIGHBOR_OFFSETS = [
 # Toggles
 SHOW_SCOREBOARD = True
 SHOW_WINNER_OVERLAY = True
+SHOW_PREDICTION_TEXT = True
 
 # Fonts
-SCOREBOARD_FONT_SIZE = 24
+SCOREBOARD_FONT_SIZE = 30
+PREDICTION_FONT_SIZE = 40
 
 # ------------------------------------------------------------------------
 # Additional Sound Cooldowns & Timestamps
@@ -405,6 +407,16 @@ def determine_initial_dominance():
     else:
         dominant_color, submissive_color = LOGIC_COLOR1, LOGIC_COLOR2
 
+# Helper function: Draw text with outline
+def draw_text_with_border(surface, text, font, text_color, border_color, pos, border_width=2):
+    for dx in [-border_width, 0, border_width]:
+        for dy in [-border_width, 0, border_width]:
+            if dx != 0 or dy != 0:
+                border_surface = font.render(text, True, border_color)
+                surface.blit(border_surface, (pos[0] + dx, pos[1] + dy))
+    text_surface = font.render(text, True, text_color)
+    surface.blit(text_surface, pos)
+
 def main():
     global dominant_color, submissive_color, collision_song_pos  # needed for option 2 updates
 
@@ -415,6 +427,7 @@ def main():
     # Fonts for scoreboard & winner overlay
     scoreboard_font = pygame.font.SysFont(None, SCOREBOARD_FONT_SIZE)
     winner_font = pygame.font.SysFont(None, 72)
+    prediction_font = pygame.font.SysFont(None, PREDICTION_FONT_SIZE)
 
     winner_declared = False
     winner_text = ""
@@ -550,15 +563,23 @@ def main():
             scoreboard_surf_left = render_text_with_outline(
                 scoreboard_font, text_left, TEAM1_TEXT_COLOR, (255, 255, 255), 2
             )
-            screen.blit(scoreboard_surf_left, (10, 10))
+            screen.blit(scoreboard_surf_left, (23, 23))
 
             # Right scoreboard (Team2)
             text_right = f"{TEAM2_NAME}: {count_type2}"
             scoreboard_surf_right = render_text_with_outline(
-                scoreboard_font, text_right, TEAM2_TEXT_COLOR, (255, 255, 255), 2
-            )
+                scoreboard_font, text_right, TEAM2_TEXT_COLOR, (255, 255, 255), 2)
             right_width = scoreboard_surf_right.get_width()
-            screen.blit(scoreboard_surf_right, (SCREEN_WIDTH - right_width - 10, 10))
+            screen.blit(scoreboard_surf_right, (SCREEN_WIDTH - right_width - 23, 23))
+
+        # Draw the prediction text if enabled and no winner yet.
+        if SHOW_PREDICTION_TEXT and not winner_declared:
+            prediction_text = "what sport will win?"
+            # Position: centered horizontally, a bit lower than the scoreboard (e.g. below the left/right texts)
+            prediction_y = 23 + scoreboard_font.get_height() + 22
+            pred_text_surface = prediction_font.render(prediction_text, True, (0,0,0))
+            pred_text_rect = pred_text_surface.get_rect(center=(SCREEN_WIDTH//2, prediction_y))
+            draw_text_with_border(screen, prediction_text, prediction_font, (0,0,0), (255,255,255), pred_text_rect.topleft)
 
         # Winner check
         if not winner_declared:

@@ -9,7 +9,7 @@ from Box2D import b2World, b2ContactListener, b2EdgeShape
 # CONFIGURABLE VARIABLES
 ###############################################################################
 # Random seed
-SEED = 1
+SEED = 2
 
 # Screen settings
 SCREEN_WIDTH = 432       # Display window width
@@ -21,7 +21,7 @@ FRAMERATE = 60
 PPM = 10.0  # Pixels per meter
 
 # Gravity rotates around to "bounce"
-GRAVITY_MAG = 85        # Gravity magnitude
+GRAVITY_MAG = 95        # Gravity magnitude
 GRAVITY_ROT_SPEED = 0.0005  # How fast gravity rotates
 
 # Ball settings
@@ -29,11 +29,11 @@ BALL_RADIUS = 1
 BALL_COLOR = (255, 255, 255)
 
 # Rings settings
-NUM_RINGS = 14
-INITIAL_RING_RADIUS = 7
-RING_DISTANCE = 2.5       # You can change this to increase/decrease ring spacing
-INITIAL_ROTATION_SPEED = 1.40
-ROTATION_SPEED_MULTIPLIER = 1.008
+NUM_RINGS = 40
+INITIAL_RING_RADIUS = 8
+RING_DISTANCE = 1.5       # You can change this to increase/decrease ring spacing
+INITIAL_ROTATION_SPEED = 1.90
+ROTATION_SPEED_MULTIPLIER = 1.005
 INITIAL_HUE = 0
 RING_LINE_THICKNESS = 8
 
@@ -46,12 +46,12 @@ SQUARE_SIZE = 4
 CIRCLE_GAP_END_ANGLE = 299.0
 
 # Explosion / Particle settings
-PARTICLE_COUNT = 20
+PARTICLE_COUNT = 9
 PARTICLE_SIZE_MIN = 0.5
 PARTICLE_SIZE_MAX = 2
 PARTICLE_ANGLE_MIN = 0
 PARTICLE_ANGLE_MAX = 360
-PARTICLE_SPEED_MIN = 0.1
+PARTICLE_SPEED_MIN = 0.6
 PARTICLE_SPEED_MAX = 1
 PARTICLE_LIFE_MIN = 100
 PARTICLE_LIFE_MAX = 1000
@@ -62,21 +62,52 @@ INITIAL_PAUSE_TIME = 3.0
 # SOUND AND VOLUME SETTINGS
 COLLISION_VOLUME = 0.69
 DESTROY_VOLUME = 0.5
-DESTROY_SOUND_FILE = "discord.mp3"
+DESTROY_SOUND_FILE = "levelup.wav"
+#DESTROY_SOUND_FILE = "discord.mp3"
 #DESTROY_SOUND_FILE = "assets/Mustard.mp3"
+"""
 COLLISION_SOUND_FILES = [
     "assets/(1).wav",
     "assets/(2).wav",
     "assets/(3).wav"
 ]
+"""
+"""
+COLLISION_SOUND_FILES = [
+    "assets/Untitled.wav",
+    "assets/Untitled (1).wav",
+    "assets/Untitled (2).wav",
+    "assets/Untitled (3).wav",
+    "assets/Untitled (4).wav",
+    "assets/Untitled (5).wav",
+    "assets/Untitled (6).wav",
+    "assets/Untitled (7).wav",
+    "assets/Untitled (8).wav",
+    "assets/Untitled (9).wav",
+    "assets/Untitled (10).wav",
+    "assets/Untitled (11).wav"
+]
+"""
+COLLISION_SOUND_FILES = [
+    "wav/a1s.wav",
+    "wav/b1.wav",
+    "wav/c2.wav",
+    "wav/d1s.wav",
+    "wav/e1.wav",
+    "wav/f1s.wav",
+    "wav/g1s.wav"
+]
+
 # IMPORTANT: For SOUND_OPTION 2, the collision snippet file must support playback offset.
 # WAV files typically do not support the "start" parameter correctly.
 # Convert your snippet file to OGG or MP3.
-COLLISION_SOUND2 = "ed.ogg"  # converted to OGG
+#COLLISION_SOUND2 = "ed.ogg"  # converted to OGG
+COLLISION_SOUND2 = "calmloop.mp3"  # converted to OGG
 
 # NEW SOUND OPTION SETTINGS
-SOUND_OPTION = 2  # 1: current behavior, 2: new snippet-based behavior
-SNIPPET_DURATION = 0.45  # snippet duration in seconds (adjust as needed)
+SOUND_OPTION = 1  # 1: current behavior, 2: new snippet-based behavior
+#SNIPPET_DURATION = 0.45  # snippet duration in seconds (adjust as needed)
+SNIPPET_DURATION = 0.22  # snippet duration in seconds (adjust as needed)
 COLLISION_OVERLAP_BUFFER = 0.01  # collision overlap buffer in seconds (10 ms)
 
 # TEXT RENDER SETTINGS
@@ -84,11 +115,16 @@ TEXT_COLOR = (255, 255, 255)
 TEXT_POSITION = (SCREEN_WIDTH // 2, 70)  # Centered horizontally, 80px from top
 
 # TIMER SETTINGS
-TIMER_DURATION = 30.0  # Default timer length in seconds (can be changed)
+TIMER_DURATION = 35.0  # Default timer length in seconds (can be changed)
 TIMER_POSITION = (SCREEN_WIDTH // 2, 37)  # Timer displayed above bounce count
 
 # New Color Setting: 1 for current rainbow behavior, 2 for custom gradient.
 COLOR_SETTING = 2  # Change this to 2 for gradient
+
+# NEW SHRINKING VARIABLES
+SHRINK_SPEED1 = 5.00   # Fast shrink speed (from current radius down to INITIAL_RING_RADIUS)
+SHRINK_SPEED2 = 1.75   # Slow shrink speed (from INITIAL_RING_RADIUS to 0)
+SHRINK_DELAY  = 0.20   # Delay (in seconds) after an inner ring is popped before shrinking starts
 
 # Define the gradient function for COLOR_SETTING 2.
 # This example creates a gradient from green to blue.
@@ -301,6 +337,32 @@ class Ring:
                         shape=edge, density=1, friction=0.0, restitution=1.0
                     )
 
+    def update_collision_shape(self):
+        # Remove all existing fixtures and re-create them based on the new radius
+        for fixture in list(self.body.fixtures):
+            self.body.DestroyFixture(fixture)
+        self.vertices = []
+        for i in range(self.size):
+            angle = i * (2 * math.pi / self.size)
+            x = self.radius * math.cos(angle)
+            y = self.radius * math.sin(angle)
+            self.vertices.append((x, y))
+        self.create_edge_shape()
+
+    def update_shrink(self, dt, min_allowed=0):
+        old_radius = self.radius
+        # Calculate the new radius using the two-phase shrink speeds.
+        if self.radius > INITIAL_RING_RADIUS:
+            new_radius = max(self.radius - SHRINK_SPEED1 * dt, INITIAL_RING_RADIUS)
+        else:
+            new_radius = max(self.radius - SHRINK_SPEED2 * dt, 0)
+        # Ensure the new radius is not below the minimum allowed value.
+        if new_radius < min_allowed:
+            new_radius = min_allowed
+        self.radius = new_radius
+        if self.radius != old_radius:
+            self.update_collision_shape()
+
     def draw(self, paused=False):
         global utils, COLOR_SETTING
         if not paused:
@@ -404,6 +466,8 @@ class Game:
         self.collision_count = 0
         self.collision_happened_last_frame = False
         self.font = pygame.font.Font(None, 36)
+        self.elapsed_time = 0  # Accumulates dt for timing
+        self.last_pop_time = None  # Time when the innermost ring was popped
         radius = INITIAL_RING_RADIUS
         rotateSpeed = INITIAL_ROTATION_SPEED
         hue = INITIAL_HUE
@@ -428,6 +492,8 @@ class Game:
 
         utils.world.Step(1.0 / 60.0, 6, 2)
 
+        self.elapsed_time += utils.deltaTime()
+
         collision_events = len(utils.contactListener.collisions)
         if collision_events > 0:
             self.collision_count += collision_events
@@ -438,16 +504,30 @@ class Game:
             self.collision_happened_last_frame = False
         utils.contactListener.collisions = []
 
+        # Check if the ball has escaped the inner (first) ring.
         if len(self.rings) > 0:
             if self.center.distance_to(self.ball.getPos()) > self.rings[0].radius * 10:
                 self.rings[0].destroyFlag = True
                 utils.world.DestroyBody(self.rings[0].body)
+                self.last_pop_time = self.elapsed_time
 
-        for ring in self.rings:
+        # Process popped rings.
+        for ring in self.rings[:]:
             if ring.destroyFlag:
                 self.particles += ring.spawParticles()
                 self.rings.remove(ring)
                 sounds.playDestroySound()
+
+        # If enough time has passed since the last pop, shrink all remaining unpopped rings
+        # while maintaining a minimum gap of RING_DISTANCE between each ring.
+        if self.last_pop_time is not None and (self.elapsed_time - self.last_pop_time) >= SHRINK_DELAY:
+            dt = utils.deltaTime()
+            for i, ring in enumerate(self.rings):
+                if i == 0:
+                    ring.update_shrink(dt, min_allowed=0)
+                else:
+                    min_allowed = self.rings[i-1].radius + RING_DISTANCE
+                    ring.update_shrink(dt, min_allowed=min_allowed)
 
         for exp in self.particles:
             exp.update()

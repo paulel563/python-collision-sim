@@ -54,11 +54,9 @@ INITIAL_PAUSE_TIME = 3.0
 COLLISION_VOLUME = 0.69
 DESTROY_VOLUME = 0.5
 DESTROY_SOUND_FILE = "levelup.wav"
-#DESTROY_SOUND_FILE = "discord.mp3"
-#DESTROY_SOUND_FILE = "assets/Mustard.mp3"
 
 # ---------------------------------------------------------------------------
-# Generate 8 short piano‑style notes to use for collisions
+# Generate 8 short piano-style notes with extended cosine fade
 # ---------------------------------------------------------------------------
 def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
     def midi_to_hz(m):        # MIDI → frequency
@@ -68,7 +66,8 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
     os.makedirs(folder, exist_ok=True)
     paths = []
 
-    fade_len = int(sr * 0.08)          # 10ms fade‑in/out
+    fade_duration = 0.05  # 50ms fade-in/out
+    fade_len = int(sr * fade_duration)
 
     for i in range(n_notes):
         freq = midi_to_hz(base_midi + i)
@@ -82,14 +81,14 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
         envelope_body = np.exp(-4 * t)              # main decay
         wave_raw *= envelope_body
 
-        # --- 5ms linear fade‑in/out -----------------------------
-        fade_in  = np.linspace(0, 1, fade_len)
-        fade_out = np.linspace(1, 0, fade_len)
-        wave_raw[:fade_len]      *= fade_in
-        wave_raw[-fade_len:]     *= fade_out
-        # ---------------------------------------------------------
+        # --- Cosine fade-in/out for smoother transitions ---
+        fade_in = 0.5 * (1 - np.cos(np.pi * np.arange(fade_len) / fade_len))
+        fade_out = 0.5 * (1 + np.cos(np.pi * np.arange(fade_len) / fade_len))
+        wave_raw[:fade_len] *= fade_in
+        wave_raw[-fade_len:] *= fade_out
+        # ---------------------------------------------------
 
-        wave_raw /= np.max(np.abs(wave_raw))        # normalize
+        wave_raw /= np.max(np.abs(wave_raw)) * 1.2  # Lower amplitude to prevent clipping
 
         audio_i16 = (wave_raw * 32767).astype(np.int16)
         fname = os.path.join(folder, f"note_{i}.wav")
@@ -103,44 +102,12 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
 
 COLLISION_SOUND_FILES = generate_piano_scale()
 
-"""
-COLLISION_SOUND_FILES = [
-    "assets/(1).wav",
-    "assets/(2).wav",
-    "assets/(3).wav"
-]
-
-COLLISION_SOUND_FILES = [
-    "assets/Untitled.wav",
-    "assets/Untitled (1).wav",
-    "assets/Untitled (2).wav",
-    "assets/Untitled (3).wav",
-    "assets/Untitled (4).wav",
-    "assets/Untitled (5).wav",
-    "assets/Untitled (6).wav",
-    "assets/Untitled (7).wav",
-    "assets/Untitled (8).wav",
-    "assets/Untitled (9).wav",
-    "assets/Untitled (10).wav",
-    "assets/Untitled (11).wav"
-]
-
-COLLISION_SOUND_FILES = [
-    "wav/a1s.wav",
-    "wav/b1.wav",
-    "wav/c2.wav",
-    "wav/d1s.wav",
-    "wav/e1.wav",
-    "wav/f1s.wav",
-    "wav/g1s.wav"
-]
-"""
-
 COLLISION_SOUND2 = "calmloop.mp3"
 
 SOUND_OPTION = 1
 SNIPPET_DURATION = 0.22
-COLLISION_OVERLAP_BUFFER = 0.02
+COLLISION_OVERLAP_BUFFER = 0.05  # Kept for reference, but now using play_interval
+play_interval = 160
 
 TEXT_COLOR = (255, 255, 255)
 TEXT_POSITION = (SCREEN_WIDTH // 2, 70)
@@ -314,6 +281,7 @@ class Ring:
         self.create_edge_shape()
         self.hue = hue
         self.destroyFlag = False
+        self.transformed_vertices = []  # Cache for transformed vertices
 
     def create_edge_shape(self):
         if self.size == RING_SEGMENT_COUNT:
@@ -388,9 +356,14 @@ class Ring:
 
     def draw_edges(self):
         global utils
+        # Cache transformed vertices
+        self.transformed_vertices = []
         for fixture in self.body.fixtures:
             v1 = utils.to_Pos(self.body.transform * fixture.shape.vertices[0])
             v2 = utils.to_Pos(self.body.transform * fixture.shape.vertices[1])
+            self.transformed_vertices.append((v1, v2))
+        # Draw all lines in one go
+        for v1, v2 in self.transformed_vertices:
             pygame.draw.line(utils.screen, self.color, v1, v2, RING_LINE_THICKNESS)
 
     def spawParticles(self):
@@ -425,28 +398,33 @@ class Sounds:
             self.collisionSoundLength = pygame.mixer.Sound(self.collision_file).get_length()
             pygame.mixer.music.set_volume(COLLISION_VOLUME)
             self.current_pos = 0.0
-            self.last_collision_time = -10000
             self.snippet_end_time = 0
 
+        self.last_play_time = 0
+        self.play_interval = play_interval  # 100ms buffer between sound plays
+
     def play(self):
+        current_time = pygame.time.get_ticks()
+        # Check if enough time has passed since the last play (collision overlap buffer)
+        if current_time - self.last_play_time < self.play_interval:
+            return
         if SOUND_OPTION == 1:
+            # Stop all sounds and play the next one
             for sound in self.sounds:
                 sound.stop()
             sound = self.sounds[self.i]
             sound.play()
             self.i = (self.i + 1) % len(self.sounds)
         elif SOUND_OPTION == 2:
-            current_time = pygame.time.get_ticks()
+            # Play snippet if mixer is free
             if pygame.mixer.music.get_busy():
                 return
-            if (current_time - self.last_collision_time) < (COLLISION_OVERLAP_BUFFER * 1000):
-                return
-            pygame.mixer.music.stop()
-            self.last_collision_time = current_time
             remaining_time = self.collisionSoundLength - self.current_pos
             duration = min(SNIPPET_DURATION, remaining_time)
             pygame.mixer.music.play(start=self.current_pos)
             self.snippet_end_time = current_time + int(duration * 1000)
+        # Update the last play time
+        self.last_play_time = current_time
 
     def update(self):
         if SOUND_OPTION == 2:

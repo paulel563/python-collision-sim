@@ -4,48 +4,41 @@ import colorsys
 import pygame
 from pygame import Vector2, DOUBLEBUF, mixer
 from Box2D import b2World, b2ContactListener, b2EdgeShape
+import numpy as np
+import wave
+import os
 
 ###############################################################################
 # CONFIGURABLE VARIABLES
 ###############################################################################
-# Random seed
 SEED = 2
 
-# Screen settings
-SCREEN_WIDTH = 432       # Display window width
-SCREEN_HEIGHT = 768      # Display window height
+SCREEN_WIDTH = 432
+SCREEN_HEIGHT = 768
 SCREEN_BACKGROUND_COLOR = (0, 0, 29)
 
-# Physics and Pygame updates
 FRAMERATE = 60
-PPM = 10.0  # Pixels per meter
+PPM = 10.0
 
-# Gravity rotates around to "bounce"
-GRAVITY_MAG = 95        # Gravity magnitude
-GRAVITY_ROT_SPEED = 0.0005  # How fast gravity rotates
+GRAVITY_MAG = 95
+GRAVITY_ROT_SPEED = 0.0005
 
-# Ball settings
 BALL_RADIUS = 1
 BALL_COLOR = (255, 255, 255)
 
-# Rings settings
 NUM_RINGS = 40
 INITIAL_RING_RADIUS = 8
-RING_DISTANCE = 1.5       # You can change this to increase/decrease ring spacing
+RING_DISTANCE = 1.5
 INITIAL_ROTATION_SPEED = 1.90
 ROTATION_SPEED_MULTIPLIER = 1.005
 INITIAL_HUE = 0
 RING_LINE_THICKNESS = 8
 
-# For the ring shape logic in the code:
 RING_SEGMENT_COUNT = 50
 TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
-
-# NEW VARIABLE: the max angle (0..360) where edges are drawn. The rest is the gap.
 CIRCLE_GAP_END_ANGLE = 299.0
 
-# Explosion / Particle settings
 PARTICLE_COUNT = 9
 PARTICLE_SIZE_MIN = 0.5
 PARTICLE_SIZE_MAX = 2
@@ -56,86 +49,82 @@ PARTICLE_SPEED_MAX = 1
 PARTICLE_LIFE_MIN = 100
 PARTICLE_LIFE_MAX = 1000
 
-# Initial pause at the start of the game (in seconds)
 INITIAL_PAUSE_TIME = 3.0
 
-# SOUND AND VOLUME SETTINGS
 COLLISION_VOLUME = 0.69
 DESTROY_VOLUME = 0.5
 DESTROY_SOUND_FILE = "levelup.wav"
-#DESTROY_SOUND_FILE = "discord.mp3"
-#DESTROY_SOUND_FILE = "assets/Mustard.mp3"
-"""
-COLLISION_SOUND_FILES = [
-    "assets/(1).wav",
-    "assets/(2).wav",
-    "assets/(3).wav"
-]
-"""
-"""
-COLLISION_SOUND_FILES = [
-    "assets/Untitled.wav",
-    "assets/Untitled (1).wav",
-    "assets/Untitled (2).wav",
-    "assets/Untitled (3).wav",
-    "assets/Untitled (4).wav",
-    "assets/Untitled (5).wav",
-    "assets/Untitled (6).wav",
-    "assets/Untitled (7).wav",
-    "assets/Untitled (8).wav",
-    "assets/Untitled (9).wav",
-    "assets/Untitled (10).wav",
-    "assets/Untitled (11).wav"
-]
-"""
-COLLISION_SOUND_FILES = [
-    "wav/a1s.wav",
-    "wav/b1.wav",
-    "wav/c2.wav",
-    "wav/d1s.wav",
-    "wav/e1.wav",
-    "wav/f1s.wav",
-    "wav/g1s.wav"
-]
 
-# IMPORTANT: For SOUND_OPTION 2, the collision snippet file must support playback offset.
-# WAV files typically do not support the "start" parameter correctly.
-# Convert your snippet file to OGG or MP3.
-#COLLISION_SOUND2 = "ed.ogg"  # converted to OGG
-COLLISION_SOUND2 = "calmloop.mp3"  # converted to OGG
+# ---------------------------------------------------------------------------
+# Generate 8 short piano‑style notes to use for collisions
+# ---------------------------------------------------------------------------
+def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
+    def midi_to_hz(m):        # MIDI → frequency
+        return 440.0 * 2 ** ((m - 69) / 12)
 
-# NEW SOUND OPTION SETTINGS
-SOUND_OPTION = 1  # 1: current behavior, 2: new snippet-based behavior
-#SNIPPET_DURATION = 0.45  # snippet duration in seconds (adjust as needed)
-SNIPPET_DURATION = 0.22  # snippet duration in seconds (adjust as needed)
-COLLISION_OVERLAP_BUFFER = 0.01  # collision overlap buffer in seconds (10 ms)
+    folder = "generated_notes"
+    os.makedirs(folder, exist_ok=True)
+    paths = []
 
-# TEXT RENDER SETTINGS
+    fade_len = int(sr * 0.005)          # 5 ms fade‑in/out
+
+    for i in range(n_notes):
+        freq = midi_to_hz(base_midi + i)
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+
+        wave_raw = (
+            0.6 * np.sin(2 * np.pi * freq * t)
+            + 0.3 * np.sin(2 * np.pi * freq * 2 * t)
+            + 0.1 * np.sin(2 * np.pi * freq * 3 * t)
+        )
+        envelope_body = np.exp(-4 * t)              # main decay
+        wave_raw *= envelope_body
+
+        # --- 5 ms linear fade‑in/out -----------------------------
+        fade_in  = np.linspace(0, 1, fade_len)
+        fade_out = np.linspace(1, 0, fade_len)
+        wave_raw[:fade_len]      *= fade_in
+        wave_raw[-fade_len:]     *= fade_out
+        # ---------------------------------------------------------
+
+        wave_raw /= np.max(np.abs(wave_raw))        # normalize
+
+        audio_i16 = (wave_raw * 32767).astype(np.int16)
+        fname = os.path.join(folder, f"note_{i}.wav")
+        with wave.open(fname, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(sr)
+            wf.writeframes(audio_i16.tobytes())
+        paths.append(fname)
+    return paths
+
+COLLISION_SOUND_FILES = generate_piano_scale()
+
+COLLISION_SOUND2 = "calmloop.mp3"
+
+SOUND_OPTION = 1
+SNIPPET_DURATION = 0.22
+COLLISION_OVERLAP_BUFFER = 0.01
+
 TEXT_COLOR = (255, 255, 255)
-TEXT_POSITION = (SCREEN_WIDTH // 2, 70)  # Centered horizontally, 80px from top
+TEXT_POSITION = (SCREEN_WIDTH // 2, 70)
 
-# TIMER SETTINGS
-TIMER_DURATION = 35.0  # Default timer length in seconds (can be changed)
-TIMER_POSITION = (SCREEN_WIDTH // 2, 37)  # Timer displayed above bounce count
+TIMER_DURATION = 35.0
+TIMER_POSITION = (SCREEN_WIDTH // 2, 37)
 
-# New Color Setting: 1 for current rainbow behavior, 2 for custom gradient.
-COLOR_SETTING = 2  # Change this to 2 for gradient
+COLOR_SETTING = 2
 
-# NEW SHRINKING VARIABLES
-SHRINK_SPEED1 = 5.00   # Fast shrink speed (from current radius down to INITIAL_RING_RADIUS)
-SHRINK_SPEED2 = 1.75   # Slow shrink speed (from INITIAL_RING_RADIUS to 0)
-SHRINK_DELAY  = 0.20   # Delay (in seconds) after an inner ring is popped before shrinking starts
+SHRINK_SPEED1 = 5.00
+SHRINK_SPEED2 = 1.75
+SHRINK_DELAY  = 0.20
 
-# Define the gradient function for COLOR_SETTING 2.
-# This example creates a gradient from green to blue.
 def gradient_color(t, color_start=(0, 255, 0), color_end=(0, 0, 255)):
-    # t should be between 0 and 1
     r = int(color_start[0] * (1 - t) + color_end[0] * t)
     g = int(color_start[1] * (1 - t) + color_end[1] * t)
     b = int(color_start[2] * (1 - t) + color_end[2] * t)
     return (r, g, b)
 
-# Initialize the random seed
 random.seed(SEED)
 
 ###############################################################################
@@ -151,8 +140,6 @@ class MyContactListener(b2ContactListener):
         fixtureB = contact.fixtureB
         bodyA = fixtureA.body
         bodyB = fixtureB.body
-
-        # Check if one of the fixtures is the ring and the other is the ball
         if (isinstance(bodyA.userData, Ring) and isinstance(bodyB.userData, Ball)) \
            or (isinstance(bodyA.userData, Ball) and isinstance(bodyB.userData, Ring)):
             self.collisions.append((bodyA, bodyB))
@@ -168,19 +155,14 @@ class Utils:
         pygame.init()
         self.width = SCREEN_WIDTH
         self.height = SCREEN_HEIGHT
-
         self.screen = pygame.display.set_mode((self.width, self.height), DOUBLEBUF, 16)
-
         self.dt = 0
         self.clock = pygame.time.Clock()
-
-        self.PPM = PPM  # Pixels per meter
+        self.PPM = PPM
         self.world = b2World(gravity=(0, -GRAVITY_MAG), doSleep=True)
-
         self.contactListener = MyContactListener()
         self.world.contactListener = self.contactListener
-
-        self.gravityAngle = -math.pi / 2  # start direction (straight down)
+        self.gravityAngle = -math.pi / 2
 
     def to_Pos(self, pos):
         return (pos[0] * self.PPM, self.height - (pos[1] * self.PPM))
@@ -260,10 +242,8 @@ class Particle:
 class Explosion:
     def __init__(self, x, y, color):
         self.particles = []
-        COLORS = [color]
         for _ in range(PARTICLE_COUNT):
-            chosen_color = random.choice(COLORS)
-            particle = Particle(x, y, chosen_color)
+            particle = Particle(x, y, color)
             self.particles.append(particle)
 
     def update(self):
@@ -338,7 +318,6 @@ class Ring:
                     )
 
     def update_collision_shape(self):
-        # Remove all existing fixtures and re-create them based on the new radius
         for fixture in list(self.body.fixtures):
             self.body.DestroyFixture(fixture)
         self.vertices = []
@@ -351,12 +330,10 @@ class Ring:
 
     def update_shrink(self, dt, min_allowed=0):
         old_radius = self.radius
-        # Calculate the new radius using the two-phase shrink speeds.
         if self.radius > INITIAL_RING_RADIUS:
             new_radius = max(self.radius - SHRINK_SPEED1 * dt, INITIAL_RING_RADIUS)
         else:
             new_radius = max(self.radius - SHRINK_SPEED2 * dt, 0)
-        # Ensure the new radius is not below the minimum allowed value.
         if new_radius < min_allowed:
             new_radius = min_allowed
         self.radius = new_radius
@@ -371,8 +348,7 @@ class Ring:
         if COLOR_SETTING == 1:
             self.color = utils.hueToRGB(self.hue)
         elif COLOR_SETTING == 2:
-            # Use the custom gradient; change the start/end colors as needed.
-            self.color = gradient_color(self.hue, color_start=(0,255,0), color_end=(0,0,255))
+            self.color = gradient_color(self.hue)
         self.draw_edges()
 
     def draw_edges(self):
@@ -455,8 +431,7 @@ class Sounds:
 ###############################################################################
 class Game:
     def __init__(self):
-        global utils
-        global sounds
+        global utils, sounds
 
         self.center = Vector2(utils.width / 2, utils.height / 2)
         self.ball = Ball(Vector2(utils.width / 2, utils.height / 2),
@@ -466,12 +441,12 @@ class Game:
         self.collision_count = 0
         self.collision_happened_last_frame = False
         self.font = pygame.font.Font(None, 36)
-        self.elapsed_time = 0  # Accumulates dt for timing
-        self.last_pop_time = None  # Time when the innermost ring was popped
+        self.elapsed_time = 0
+        self.last_pop_time = None
         radius = INITIAL_RING_RADIUS
         rotateSpeed = INITIAL_ROTATION_SPEED
         hue = INITIAL_HUE
-        for i in range(NUM_RINGS):
+        for _ in range(NUM_RINGS):
             ring = Ring(self.center, radius, rotateSpeed, RING_SEGMENT_COUNT, hue)
             radius += RING_DISTANCE
             rotateSpeed *= ROTATION_SPEED_MULTIPLIER
@@ -487,8 +462,7 @@ class Game:
             self.particles = [exp for exp in self.particles if len(exp.particles) > 0]
             return
 
-        global utils
-        global sounds
+        global utils, sounds
 
         utils.world.Step(1.0 / 60.0, 6, 2)
 
@@ -504,22 +478,18 @@ class Game:
             self.collision_happened_last_frame = False
         utils.contactListener.collisions = []
 
-        # Check if the ball has escaped the inner (first) ring.
         if len(self.rings) > 0:
             if self.center.distance_to(self.ball.getPos()) > self.rings[0].radius * 10:
                 self.rings[0].destroyFlag = True
                 utils.world.DestroyBody(self.rings[0].body)
                 self.last_pop_time = self.elapsed_time
 
-        # Process popped rings.
         for ring in self.rings[:]:
             if ring.destroyFlag:
                 self.particles += ring.spawParticles()
                 self.rings.remove(ring)
                 sounds.playDestroySound()
 
-        # If enough time has passed since the last pop, shrink all remaining unpopped rings
-        # while maintaining a minimum gap of RING_DISTANCE between each ring.
         if self.last_pop_time is not None and (self.elapsed_time - self.last_pop_time) >= SHRINK_DELAY:
             dt = utils.deltaTime()
             for i, ring in enumerate(self.rings):
@@ -583,9 +553,7 @@ class Game:
 # Main Loop
 ###############################################################################
 def main():
-    global utils
-    global sounds
-
+    global utils, sounds
     utils = Utils()
     sounds = Sounds()
     game = Game()

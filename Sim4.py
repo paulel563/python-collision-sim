@@ -54,6 +54,8 @@ INITIAL_PAUSE_TIME = 3.0
 COLLISION_VOLUME = 0.69
 DESTROY_VOLUME = 0.5
 DESTROY_SOUND_FILE = "levelup.wav"
+#DESTROY_SOUND_FILE = "discord.mp3"
+#DESTROY_SOUND_FILE = "assets/Mustard.mp3"
 
 # ---------------------------------------------------------------------------
 # Generate 8 short piano‑style notes to use for collisions
@@ -66,7 +68,7 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
     os.makedirs(folder, exist_ok=True)
     paths = []
 
-    fade_len = int(sr * 0.005)          # 5 ms fade‑in/out
+    fade_len = int(sr * 0.08)          # 10ms fade‑in/out
 
     for i in range(n_notes):
         freq = midi_to_hz(base_midi + i)
@@ -80,7 +82,7 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
         envelope_body = np.exp(-4 * t)              # main decay
         wave_raw *= envelope_body
 
-        # --- 5 ms linear fade‑in/out -----------------------------
+        # --- 5ms linear fade‑in/out -----------------------------
         fade_in  = np.linspace(0, 1, fade_len)
         fade_out = np.linspace(1, 0, fade_len)
         wave_raw[:fade_len]      *= fade_in
@@ -101,11 +103,44 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
 
 COLLISION_SOUND_FILES = generate_piano_scale()
 
+"""
+COLLISION_SOUND_FILES = [
+    "assets/(1).wav",
+    "assets/(2).wav",
+    "assets/(3).wav"
+]
+
+COLLISION_SOUND_FILES = [
+    "assets/Untitled.wav",
+    "assets/Untitled (1).wav",
+    "assets/Untitled (2).wav",
+    "assets/Untitled (3).wav",
+    "assets/Untitled (4).wav",
+    "assets/Untitled (5).wav",
+    "assets/Untitled (6).wav",
+    "assets/Untitled (7).wav",
+    "assets/Untitled (8).wav",
+    "assets/Untitled (9).wav",
+    "assets/Untitled (10).wav",
+    "assets/Untitled (11).wav"
+]
+
+COLLISION_SOUND_FILES = [
+    "wav/a1s.wav",
+    "wav/b1.wav",
+    "wav/c2.wav",
+    "wav/d1s.wav",
+    "wav/e1.wav",
+    "wav/f1s.wav",
+    "wav/g1s.wav"
+]
+"""
+
 COLLISION_SOUND2 = "calmloop.mp3"
 
 SOUND_OPTION = 1
 SNIPPET_DURATION = 0.22
-COLLISION_OVERLAP_BUFFER = 0.01
+COLLISION_OVERLAP_BUFFER = 0.02
 
 TEXT_COLOR = (255, 255, 255)
 TEXT_POSITION = (SCREEN_WIDTH // 2, 70)

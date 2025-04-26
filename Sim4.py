@@ -30,14 +30,14 @@ NUM_RINGS = 40
 INITIAL_RING_RADIUS = 8
 RING_DISTANCE = 1.5
 INITIAL_ROTATION_SPEED = 1.90
-ROTATION_SPEED_MULTIPLIER = 1.005
+ROTATION_SPEED_MULTIPLIER = 1.006
 INITIAL_HUE = 0
 RING_LINE_THICKNESS = 8
 
 RING_SEGMENT_COUNT = 50
 TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
-CIRCLE_GAP_END_ANGLE = 299.0
+CIRCLE_GAP_END_ANGLE = 304.0
 
 PARTICLE_COUNT = 9
 PARTICLE_SIZE_MIN = 0.5
@@ -53,7 +53,8 @@ INITIAL_PAUSE_TIME = 3.0
 
 COLLISION_VOLUME = 0.69
 DESTROY_VOLUME = 0.5
-DESTROY_SOUND_FILE = "levelup.wav"
+#DESTROY_SOUND_FILE = "levelup.wav"
+DESTROY_SOUND_FILE = "discord.mp3"
 
 # ---------------------------------------------------------------------------
 # Generate 8 short piano-style notes with extended cosine fade
@@ -102,10 +103,45 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
 
 COLLISION_SOUND_FILES = generate_piano_scale()
 
-COLLISION_SOUND2 = "calmloop.mp3"
+
+COLLISION_SOUND_FILES = [
+    "assets/(1).wav",
+    "assets/(2).wav",
+    "assets/(3).wav"
+]
+
+"""
+COLLISION_SOUND_FILES = [
+    "assets/Untitled.wav",
+    "assets/Untitled (1).wav",
+    "assets/Untitled (2).wav",
+    "assets/Untitled (3).wav",
+    "assets/Untitled (4).wav",
+    "assets/Untitled (5).wav",
+    "assets/Untitled (6).wav",
+    "assets/Untitled (7).wav",
+    "assets/Untitled (8).wav",
+    "assets/Untitled (9).wav",
+    "assets/Untitled (10).wav",
+    "assets/Untitled (11).wav"
+]
+
+
+COLLISION_SOUND_FILES = [
+    "wav/a1s.wav",
+    "wav/b1.wav",
+    "wav/c2.wav",
+    "wav/d1s.wav",
+    "wav/e1.wav",
+    "wav/f1s.wav",
+    "wav/g1s.wav"
+]
+"""
+
+COLLISION_SOUND2 = "lava.mp3"
 
 SOUND_OPTION = 1
-SNIPPET_DURATION = 0.22
+SNIPPET_DURATION = 0.2
 COLLISION_OVERLAP_BUFFER = 0.05  # Kept for reference, but now using play_interval
 play_interval = 160
 
@@ -121,7 +157,7 @@ SHRINK_SPEED1 = 5.00
 SHRINK_SPEED2 = 1.75
 SHRINK_DELAY  = 0.20
 
-def gradient_color(t, color_start=(0, 255, 0), color_end=(0, 0, 255)):
+def gradient_color(t, color_start=(255, 0, 0), color_end=(0, 0, 255)):
     r = int(color_start[0] * (1 - t) + color_end[0] * t)
     g = int(color_start[1] * (1 - t) + color_end[1] * t)
     b = int(color_start[2] * (1 - t) + color_end[2] * t)
@@ -197,7 +233,7 @@ class Ball:
         self.radius = radius
         self.circle_body = utils.world.CreateDynamicBody(position=utils.from_Pos((pos.x, pos.y)))
         self.circle_shape = self.circle_body.CreateCircleFixture(
-            radius=self.radius, density=1, friction=0.0, restitution=1.0
+            radius=self.radius, density=1, friction=0.0, restitution=1.1
         )
         self.circle_body.userData = self
         self.destroyFlag = False

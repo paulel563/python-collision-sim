@@ -26,18 +26,18 @@ GRAVITY_ROT_SPEED = 0.0005
 BALL_RADIUS = 1
 BALL_COLOR = (255, 255, 255)
 
-NUM_RINGS = 40
+NUM_RINGS = 80
 INITIAL_RING_RADIUS = 8
 RING_DISTANCE = 1.5
 INITIAL_ROTATION_SPEED = 1.95
-ROTATION_SPEED_MULTIPLIER = 1.01
+ROTATION_SPEED_MULTIPLIER = 1.013
 INITIAL_HUE = 0
 RING_LINE_THICKNESS = 6
 
 RING_SEGMENT_COUNT = 50
 TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
-CIRCLE_GAP_END_ANGLE = 295.0
+CIRCLE_GAP_END_ANGLE = 288.0
 
 PARTICLE_COUNT = 8
 PARTICLE_SIZE_MIN = 0.5
@@ -72,8 +72,8 @@ DESTROY_SOUND_FILES = [
     #"8bit.mp3"
     #"snare2.mp3"
     #"hihat.mp3"
-    "hihat2.mp3"
-    #"clap.mp3"
+    #"hihat2.mp3"
+    "clap.mp3"
 ]
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,8 @@ COLLISION_SOUND_FILES = [
 #"kick.mp3",
 "snaredrum.mp3",
 "snaredrum.mp3",
-"clap.mp3",
+#"clap.mp3",
+"hihat2.mp3",
 "snaredrum.mp3",
 "snaredrum.mp3",
 "edmkick.mp3",
@@ -198,10 +199,10 @@ TIMER_POSITION = (SCREEN_WIDTH // 2, 37)
 
 COLOR_SETTING = 2
 
-SHRINK_SPEED1 = 4.95
-SHRINK_SPEED2 = 4.0
+SHRINK_SPEED1 = 5.50
+SHRINK_SPEED2 = 4.00
 SHRINK_DELAY  = 0.10
-MINIMUM_SIZE = 2.0  # minimum ring radius
+MINIMUM_SIZE  = 4.0  # minimum ring radius
 
 def gradient_color(t, color_start=(0, 00, 255), color_end=(255, 0, 0)):
     r = int(color_start[0] * (1 - t) + color_end[0] * t)

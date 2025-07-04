@@ -14,7 +14,7 @@ RENDER_HEIGHT = 1920
 FPS = 60
 
 # TEAM-SPECIFIC SPEEDS for spikes remain the same
-TEAM2_SPEED = 6
+TEAM2_SPEED = 9
 
 TEAM2_WALL_RADIUS = 170
 TEAM2_COLLISION_RADIUS = 200
@@ -35,7 +35,7 @@ TEAM2_TEXT_COLOR = (189, 138, 193)
 
 BACKGROUND_COLOR = (0, 0, 0)
 
-SEED = 24               # 11, 12 and 20 for 25sec bubble W
+SEED = 69               # 11, 12, 24 and 20 for 25sec bubble W
 INITIAL_PAUSE_SECONDS = 3
 
 # New variable for simulation duration (timer countdown)
@@ -58,7 +58,7 @@ PROMPT_COLOR = (0, 0, 0)
 # Both groups share the same logic color (LOGIC_COLOR1) so they contribute to the same counter.
 # Each group now defines its own count, wall/collision radius, speed, image, and pop sound list.
 SMALL_BUBBLE_SETTINGS = {
-    "count": 140,
+    "count": 40,
     "wall_radius": 35,
     "collision_radius": 35,
     "speed": 1,
@@ -68,7 +68,7 @@ SMALL_BUBBLE_SETTINGS = {
 }
 
 BIG_BUBBLE_SETTINGS = {
-    "count": 60,
+    "count": 10,
     "wall_radius": 50,
     "collision_radius": 50,
     "speed": 0.5,
@@ -96,7 +96,7 @@ SCOREBOARD_FONT_SIZE = 37
 # ------------------------------------------------------------------------
 # Sound Config
 # ------------------------------------------------------------------------
-SOUND_COOLDOWN_MS = 72
+SOUND_COOLDOWN_MS = 30
 SWAP_SOUND_COOLDOWN_MS = 500
 
 last_collision_sound_tick = 0

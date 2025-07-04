@@ -29,35 +29,55 @@ BALL_COLOR = (255, 255, 255)
 NUM_RINGS = 40
 INITIAL_RING_RADIUS = 8
 RING_DISTANCE = 1.5
-INITIAL_ROTATION_SPEED = 1.90
-ROTATION_SPEED_MULTIPLIER = 1.006
+INITIAL_ROTATION_SPEED = 1.95
+ROTATION_SPEED_MULTIPLIER = 1.01
 INITIAL_HUE = 0
-RING_LINE_THICKNESS = 8
+RING_LINE_THICKNESS = 6
 
 RING_SEGMENT_COUNT = 50
 TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
-CIRCLE_GAP_END_ANGLE = 304.0
+CIRCLE_GAP_END_ANGLE = 295.0
 
-PARTICLE_COUNT = 9
+PARTICLE_COUNT = 8
 PARTICLE_SIZE_MIN = 0.5
 PARTICLE_SIZE_MAX = 2
 PARTICLE_ANGLE_MIN = 0
 PARTICLE_ANGLE_MAX = 360
 PARTICLE_SPEED_MIN = 0.6
-PARTICLE_SPEED_MAX = 1
-PARTICLE_LIFE_MIN = 100
-PARTICLE_LIFE_MAX = 1000
+PARTICLE_SPEED_MAX = 1.25
+PARTICLE_LIFE_MIN = 10
+PARTICLE_LIFE_MAX = 100
 
 INITIAL_PAUSE_TIME = 3.0
 
 COLLISION_VOLUME = 0.69
 DESTROY_VOLUME = 0.5
 #DESTROY_SOUND_FILE = "levelup.wav"
-DESTROY_SOUND_FILE = "discord.mp3"
+#DESTROY_SOUND_FILE = "discord.mp3"
+#DESTROY_SOUND_FILE = "cash.wav"
+#DESTROY_SOUND_FILE = "repo.mp3"
+#DESTROY_SOUND_FILE = "jump.wav"
+"""
+DESTROY_SOUND_FILES = [
+    "repo1.wav",
+    "repo2.wav",
+    "repo3.wav",
+    "repo4.wav",
+    "repo5.wav",
+]
+"""
+DESTROY_SOUND_FILES = [
+    #"chicken.wav"
+    #"8bit.mp3"
+    #"snare2.mp3"
+    #"hihat.mp3"
+    "hihat2.mp3"
+    #"clap.mp3"
+]
 
 # ---------------------------------------------------------------------------
-# Generate 8 short piano-style notes with extended cosine fade
+# Generate 8 short piano‑style notes with extended cosine fade
 # ---------------------------------------------------------------------------
 def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
     def midi_to_hz(m):        # MIDI → frequency
@@ -67,7 +87,7 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
     os.makedirs(folder, exist_ok=True)
     paths = []
 
-    fade_duration = 0.05  # 50ms fade-in/out
+    fade_duration = 0.05  # 50 ms fade‑in/out
     fade_len = int(sr * fade_duration)
 
     for i in range(n_notes):
@@ -82,7 +102,7 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
         envelope_body = np.exp(-4 * t)              # main decay
         wave_raw *= envelope_body
 
-        # --- Cosine fade-in/out for smoother transitions ---
+        # --- Cosine fade‑in/out for smoother transitions ---
         fade_in = 0.5 * (1 - np.cos(np.pi * np.arange(fade_len) / fade_len))
         fade_out = 0.5 * (1 + np.cos(np.pi * np.arange(fade_len) / fade_len))
         wave_raw[:fade_len] *= fade_in
@@ -103,61 +123,87 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
 
 COLLISION_SOUND_FILES = generate_piano_scale()
 
-
-COLLISION_SOUND_FILES = [
-    "assets/(1).wav",
-    "assets/(2).wav",
-    "assets/(3).wav"
-]
-
 """
 COLLISION_SOUND_FILES = [
-    "assets/Untitled.wav",
-    "assets/Untitled (1).wav",
-    "assets/Untitled (2).wav",
-    "assets/Untitled (3).wav",
-    "assets/Untitled (4).wav",
-    "assets/Untitled (5).wav",
-    "assets/Untitled (6).wav",
-    "assets/Untitled (7).wav",
-    "assets/Untitled (8).wav",
-    "assets/Untitled (9).wav",
-    "assets/Untitled (10).wav",
-    "assets/Untitled (11).wav"
+"assets/(1).wav",
+"assets/(2).wav",
+"assets/(3).wav"
 ]
-
-
+"""
+"""
 COLLISION_SOUND_FILES = [
-    "wav/a1s.wav",
-    "wav/b1.wav",
-    "wav/c2.wav",
-    "wav/d1s.wav",
-    "wav/e1.wav",
-    "wav/f1s.wav",
-    "wav/g1s.wav"
+"assets/Untitled.wav",
+"assets/Untitled (1).wav",
+"assets/Untitled (2).wav",
+"assets/Untitled (3).wav",
+"assets/Untitled (4).wav",
+"assets/Untitled (5).wav",
+"assets/Untitled (6).wav",
+"assets/Untitled (7).wav",
+"assets/Untitled (8).wav",
+"assets/Untitled (9).wav",
+"assets/Untitled (10).wav",
+"assets/Untitled (11).wav"
+]
+"""
+"""
+COLLISION_SOUND_FILES = [
+"wav/a1s.wav",
+"wav/b1.wav",
+"wav/c2.wav",
+"wav/d1s.wav",
+"wav/e1.wav",
+"wav/f1s.wav",
+"wav/g1s.wav"
+]
+"""
+"""
+COLLISION_SOUND_FILES = [
+"repo1.wav",
+"repo2.wav",
+"repo3.wav",
+"repo4.wav",
+"repo5.wav",
 ]
 """
 
-COLLISION_SOUND2 = "lava.mp3"
+COLLISION_SOUND_FILES = [
+#"hurt.mp3"
+#"thud.mp3"
+#"simpledrum.ogg",
+#"edmkick.mp3",
+#"edmkick.mp3",
+#"hihat.mp3",
+#"kick.mp3",
+"snaredrum.mp3",
+"snaredrum.mp3",
+"clap.mp3",
+"snaredrum.mp3",
+"snaredrum.mp3",
+"edmkick.mp3",
+]
+
+COLLISION_SOUND2 = "repo.mp3"
 
 SOUND_OPTION = 1
-SNIPPET_DURATION = 0.2
+SNIPPET_DURATION = 0.4
 COLLISION_OVERLAP_BUFFER = 0.05  # Kept for reference, but now using play_interval
-play_interval = 160
+play_interval = 5
 
 TEXT_COLOR = (255, 255, 255)
 TEXT_POSITION = (SCREEN_WIDTH // 2, 70)
 
-TIMER_DURATION = 35.0
+TIMER_DURATION = 30.0
 TIMER_POSITION = (SCREEN_WIDTH // 2, 37)
 
 COLOR_SETTING = 2
 
-SHRINK_SPEED1 = 5.00
-SHRINK_SPEED2 = 1.75
-SHRINK_DELAY  = 0.20
+SHRINK_SPEED1 = 4.95
+SHRINK_SPEED2 = 4.0
+SHRINK_DELAY  = 0.10
+MINIMUM_SIZE = 2.0  # minimum ring radius
 
-def gradient_color(t, color_start=(255, 0, 0), color_end=(0, 0, 255)):
+def gradient_color(t, color_start=(0, 00, 255), color_end=(255, 0, 0)):
     r = int(color_start[0] * (1 - t) + color_end[0] * t)
     g = int(color_start[1] * (1 - t) + color_end[1] * t)
     b = int(color_start[2] * (1 - t) + color_end[2] * t)
@@ -375,6 +421,10 @@ class Ring:
             new_radius = max(self.radius - SHRINK_SPEED2 * dt, 0)
         if new_radius < min_allowed:
             new_radius = min_allowed
+        if new_radius < min_allowed:
+            new_radius = min_allowed
+        if new_radius < MINIMUM_SIZE:   # clamp to minimum size
+            new_radius = MINIMUM_SIZE
         self.radius = new_radius
         if self.radius != old_radius:
             self.update_collision_shape()
@@ -420,8 +470,10 @@ class Ring:
 class Sounds:
     def __init__(self):
         mixer.init()
-        self.destroySound = pygame.mixer.Sound(DESTROY_SOUND_FILE)
-        self.destroySound.set_volume(DESTROY_VOLUME)
+        self.destroySounds = [pygame.mixer.Sound(f) for f in DESTROY_SOUND_FILES]
+        for s in self.destroySounds:
+            s.set_volume(DESTROY_VOLUME)
+        self.destroyIndex = 0
 
         if SOUND_OPTION == 1:
             self.sounds = [pygame.mixer.Sound(f) for f in COLLISION_SOUND_FILES]
@@ -437,7 +489,7 @@ class Sounds:
             self.snippet_end_time = 0
 
         self.last_play_time = 0
-        self.play_interval = play_interval  # 100ms buffer between sound plays
+        self.play_interval = play_interval  # 100 ms buffer between sound plays
 
     def play(self):
         current_time = pygame.time.get_ticks()
@@ -473,7 +525,9 @@ class Sounds:
                     self.current_pos = 0.0
 
     def playDestroySound(self):
-        self.destroySound.play()
+        sound = self.destroySounds[self.destroyIndex]
+        sound.play()
+        self.destroyIndex = (self.destroyIndex + 1) % len(self.destroySounds)
 
 ###############################################################################
 # Game

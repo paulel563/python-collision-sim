@@ -12,6 +12,9 @@ satisfying, satisfyingvideo, relaxing, relaxingvideo, colorful, colors, letters,
 ASMR, ADHD, coding, python, physics, bouncing ball, shorts, names, 3danimation, 3dart, viral video, ball, cool, circle, bouncing circle
 
 
+satisfying,ball,bouncing ball,asmr,music,relaxing,escape,physics,viral,coding,
+programming,simulation,satisfying videos,2d animation,guess the song,asmr song,ball game,python,2d simulating,colored ball
+
 
 
 

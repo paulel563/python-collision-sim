@@ -587,9 +587,28 @@ class Game:
                 utils.world.DestroyBody(self.rings[0].body)
                 self.last_pop_time = self.elapsed_time
 
+        # detect when the innermost ring “escapes” the ball → pop it
+        if self.rings:
+            first = self.rings[0]
+            if self.center.distance_to(self.ball.getPos()) > first.radius * 10:
+                first.destroyFlag = True
+                # immediately deactivate physics so Box2D skips it
+                first.body.active = False
+                self.last_pop_time = self.elapsed_time
+
         for ring in self.rings[:]:
             if ring.destroyFlag:
                 self.particles += ring.spawParticles()
+                self.rings.remove(ring)
+                sounds.playDestroySound()
+
+        for ring in self.rings[:]:
+            if ring.destroyFlag:
+                # spawn the particle explosion
+                self.particles += ring.spawParticles()
+                # now fully destroy its body
+                utils.world.DestroyBody(ring.body)
+                # remove it from our list
                 self.rings.remove(ring)
                 sounds.playDestroySound()
 

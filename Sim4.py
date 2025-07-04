@@ -26,7 +26,7 @@ GRAVITY_ROT_SPEED = 0.0005
 BALL_RADIUS = 1
 BALL_COLOR = (255, 255, 255)
 
-NUM_RINGS = 80
+NUM_RINGS = 40
 INITIAL_RING_RADIUS = 8
 RING_DISTANCE = 1.5
 INITIAL_ROTATION_SPEED = 1.95
@@ -37,7 +37,7 @@ RING_LINE_THICKNESS = 6
 RING_SEGMENT_COUNT = 50
 TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
-CIRCLE_GAP_END_ANGLE = 288.0
+CIRCLE_GAP_END_ANGLE = 291.0
 
 PARTICLE_COUNT = 8
 PARTICLE_SIZE_MIN = 0.5
@@ -72,12 +72,12 @@ DESTROY_SOUND_FILES = [
     #"8bit.mp3"
     #"snare2.mp3"
     #"hihat.mp3"
-    #"hihat2.mp3"
-    "clap.mp3"
+    "hihat2.mp3"
+    #"clap.mp3"
 ]
 
 # ---------------------------------------------------------------------------
-# Generate 8 short piano‑style notes with extended cosine fade
+# Generate 8 short piano-style notes with extended cosine fade
 # ---------------------------------------------------------------------------
 def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
     def midi_to_hz(m):        # MIDI → frequency
@@ -87,7 +87,7 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
     os.makedirs(folder, exist_ok=True)
     paths = []
 
-    fade_duration = 0.05  # 50 ms fade‑in/out
+    fade_duration = 0.05  # 50 ms fade-in/out
     fade_len = int(sr * fade_duration)
 
     for i in range(n_notes):
@@ -102,7 +102,7 @@ def generate_piano_scale(n_notes=8, base_midi=60, duration=0.18, sr=44100):
         envelope_body = np.exp(-4 * t)              # main decay
         wave_raw *= envelope_body
 
-        # --- Cosine fade‑in/out for smoother transitions ---
+        # --- Cosine fade-in/out for smoother transitions ---
         fade_in = 0.5 * (1 - np.cos(np.pi * np.arange(fade_len) / fade_len))
         fade_out = 0.5 * (1 + np.cos(np.pi * np.arange(fade_len) / fade_len))
         wave_raw[:fade_len] *= fade_in
@@ -177,8 +177,8 @@ COLLISION_SOUND_FILES = [
 #"kick.mp3",
 "snaredrum.mp3",
 "snaredrum.mp3",
-#"clap.mp3",
-"hihat2.mp3",
+"clap.mp3",
+#"hihat2.mp3",
 "snaredrum.mp3",
 "snaredrum.mp3",
 "edmkick.mp3",
@@ -199,9 +199,9 @@ TIMER_POSITION = (SCREEN_WIDTH // 2, 37)
 
 COLOR_SETTING = 2
 
-SHRINK_SPEED1 = 5.50
-SHRINK_SPEED2 = 4.00
-SHRINK_DELAY  = 0.10
+SHRINK_SPEED1 = 5.10
+SHRINK_SPEED2 = 3.70
+SHRINK_DELAY  = 0.13
 MINIMUM_SIZE  = 4.0  # minimum ring radius
 
 def gradient_color(t, color_start=(0, 00, 255), color_end=(255, 0, 0)):
@@ -422,8 +422,6 @@ class Ring:
             new_radius = max(self.radius - SHRINK_SPEED2 * dt, 0)
         if new_radius < min_allowed:
             new_radius = min_allowed
-        if new_radius < min_allowed:
-            new_radius = min_allowed
         if new_radius < MINIMUM_SIZE:   # clamp to minimum size
             new_radius = MINIMUM_SIZE
         self.radius = new_radius
@@ -490,7 +488,7 @@ class Sounds:
             self.snippet_end_time = 0
 
         self.last_play_time = 0
-        self.play_interval = play_interval  # 100 ms buffer between sound plays
+        self.play_interval = play_interval  # 100 ms buffer between sound plays
 
     def play(self):
         current_time = pygame.time.get_ticks()
@@ -568,6 +566,7 @@ class Game:
 
         global utils, sounds
 
+        # keep original solver iterations
         utils.world.Step(1.0 / 60.0, 6, 2)
 
         self.elapsed_time += utils.deltaTime()
@@ -582,37 +581,23 @@ class Game:
             self.collision_happened_last_frame = False
         utils.contactListener.collisions = []
 
-        if len(self.rings) > 0:
-            if self.center.distance_to(self.ball.getPos()) > self.rings[0].radius * 10:
-                self.rings[0].destroyFlag = True
-                utils.world.DestroyBody(self.rings[0].body)
-                self.last_pop_time = self.elapsed_time
-
-        # detect when the innermost ring “escapes” the ball → pop it
-        if self.rings:
+        # detect when the innermost ring “escapes” the ball → mark for pop
+        if self.rings and self.center.distance_to(self.ball.getPos()) > self.rings[0].radius * 10:
             first = self.rings[0]
-            if self.center.distance_to(self.ball.getPos()) > first.radius * 10:
-                first.destroyFlag = True
-                # immediately deactivate physics so Box2D skips it
-                first.body.active = False
-                self.last_pop_time = self.elapsed_time
+            first.destroyFlag = True
+            # deactivate physics so Box2D ignores it
+            first.body.active = False
+            self.last_pop_time = self.elapsed_time
 
+        # handle all popped rings in one pass
         for ring in self.rings[:]:
             if ring.destroyFlag:
                 self.particles += ring.spawParticles()
-                self.rings.remove(ring)
-                sounds.playDestroySound()
-
-        for ring in self.rings[:]:
-            if ring.destroyFlag:
-                # spawn the particle explosion
-                self.particles += ring.spawParticles()
-                # now fully destroy its body
                 utils.world.DestroyBody(ring.body)
-                # remove it from our list
                 self.rings.remove(ring)
                 sounds.playDestroySound()
 
+        # shrink remaining rings after delay
         if self.last_pop_time is not None and (self.elapsed_time - self.last_pop_time) >= SHRINK_DELAY:
             dt = utils.deltaTime()
             for i, ring in enumerate(self.rings):

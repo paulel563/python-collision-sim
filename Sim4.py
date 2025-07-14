@@ -26,18 +26,18 @@ GRAVITY_ROT_SPEED = 0.0005
 BALL_RADIUS = 1
 BALL_COLOR = (255, 255, 255)
 
-NUM_RINGS = 40
+NUM_RINGS = 55
 INITIAL_RING_RADIUS = 8
 RING_DISTANCE = 1.5
-INITIAL_ROTATION_SPEED = 1.95
-ROTATION_SPEED_MULTIPLIER = 1.013
+INITIAL_ROTATION_SPEED = 1.96
+ROTATION_SPEED_MULTIPLIER = 1.008
 INITIAL_HUE = 0
-RING_LINE_THICKNESS = 6
+RING_LINE_THICKNESS = 5
 
-RING_SEGMENT_COUNT = 50
+RING_SEGMENT_COUNT = 35
 TRIANGLE_SIZE = 3
 SQUARE_SIZE = 4
-CIRCLE_GAP_END_ANGLE = 291.0
+CIRCLE_GAP_END_ANGLE = 295.0
 
 PARTICLE_COUNT = 8
 PARTICLE_SIZE_MIN = 0.5
@@ -71,9 +71,10 @@ DESTROY_SOUND_FILES = [
     #"chicken.wav"
     #"8bit.mp3"
     #"snare2.mp3"
-    #"hihat.mp3"
-    "hihat2.mp3"
+    "hihat.mp3"
+    #"hihat2.mp3"
     #"clap.mp3"
+    
 ]
 
 # ---------------------------------------------------------------------------
@@ -174,14 +175,18 @@ COLLISION_SOUND_FILES = [
 #"edmkick.mp3",
 #"edmkick.mp3",
 #"hihat.mp3",
+#"hihatagain.wav",
+#"hiphihat.wav",
 #"kick.mp3",
+#"snaredrum.mp3",
+#"punchysnare.wav",
 "snaredrum.mp3",
-"snaredrum.mp3",
-"clap.mp3",
+#"clap.mp3",
 #"hihat2.mp3",
-"snaredrum.mp3",
-"snaredrum.mp3",
+#"snaredrum.mp3",
+#"snaredrum.mp3",
 "edmkick.mp3",
+"boomkick.mp3",
 ]
 
 COLLISION_SOUND2 = "repo.mp3"
@@ -189,7 +194,7 @@ COLLISION_SOUND2 = "repo.mp3"
 SOUND_OPTION = 1
 SNIPPET_DURATION = 0.4
 COLLISION_OVERLAP_BUFFER = 0.05  # Kept for reference, but now using play_interval
-play_interval = 5
+play_interval = 80
 
 TEXT_COLOR = (255, 255, 255)
 TEXT_POSITION = (SCREEN_WIDTH // 2, 70)
@@ -197,14 +202,14 @@ TEXT_POSITION = (SCREEN_WIDTH // 2, 70)
 TIMER_DURATION = 30.0
 TIMER_POSITION = (SCREEN_WIDTH // 2, 37)
 
-COLOR_SETTING = 2
+COLOR_SETTING = 1
 
-SHRINK_SPEED1 = 5.10
+SHRINK_SPEED1 = 5.30
 SHRINK_SPEED2 = 3.70
 SHRINK_DELAY  = 0.13
 MINIMUM_SIZE  = 4.0  # minimum ring radius
 
-def gradient_color(t, color_start=(0, 00, 255), color_end=(255, 0, 0)):
+def gradient_color(t, color_start=(0, 0, 255), color_end=(255, 0, 0)):
     r = int(color_start[0] * (1 - t) + color_end[0] * t)
     g = int(color_start[1] * (1 - t) + color_end[1] * t)
     b = int(color_start[2] * (1 - t) + color_end[2] * t)
